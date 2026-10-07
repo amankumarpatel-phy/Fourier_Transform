@@ -340,5 +340,34 @@ elif choice=="Short-Time Fourier Transform":
     with tabs[4]:st.write("STFT introduces a time-frequency trade-off: a narrow window tracks rapid events but broadens spectral features; a wide window resolves frequencies better but blurs when they occur.")
     with tabs[5]:st.markdown("### Research applications\n- Transient spectroscopy\n- Wave-packet dynamics\n- Acoustic and vibration physics\n- Biomedical time-frequency analysis\n- Experimental data with evolving frequencies")
 
-st.divider()
-st.caption("Aman Edge Physics · Fourier Physics Research Workstation")
+st.markdown("""
+<div class="fixed-footer">
+  <span><b>Aman Edge Physics</b></span>
+  <span>Fourier Physics Research Workstation</span>
+  <span>Computational Mathematical Physics</span>
+</div>
+<style>
+.fixed-footer{
+position:fixed;
+left:0;
+bottom:0;
+width:100%;
+height:42px;
+z-index:999999;
+display:flex;
+align-items:center;
+justify-content:center;
+gap:18px;
+padding:0 18px;
+box-sizing:border-box;
+background:rgba(20,20,24,.96);
+color:#f5f5f5;
+border-top:1px solid rgba(255,255,255,.18);
+font-size:13px;
+letter-spacing:.15px;
+box-shadow:0 -4px 18px rgba(0,0,0,.18);
+}
+.fixed-footer span+span:before{content:"•";margin-right:18px;opacity:.55}
+.main .block-container{padding-bottom:70px;}
+</style>
+""",unsafe_allow_html=True)
