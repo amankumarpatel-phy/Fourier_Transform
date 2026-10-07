@@ -31,7 +31,7 @@ pages=[
 "7 · Uncertainty & Wave Packets","8 · 2D Fourier Transform",
 "9 · 2D Frequency-Space Filtering","10 · Fourier Optics",
 "11 · Reciprocal Lattice","12 · Crystal Structure Factor",
-"13 · Quantum Position–Momentum","14 · Fourier Methods for PDEs","15 · Graduate Fourier Physics","16 · Fourier Imaging Theory","17 · Reciprocal-Space Geometry"
+"13 · Quantum Position–Momentum","14 · Fourier Methods for PDEs","15 · Graduate Fourier Physics","16 · Fourier Imaging Theory","17 · Reciprocal-Space Geometry","18 · Fourier Operators & Dispersion","19 · Wigner Phase Space","20 · Coherent Diffraction","21 · Sampling & Aliasing Physics","22 · 2D Green Functions","23 · Bloch Waves & Band Formation","24 · Helmholtz & Wave-Vector Shells","25 · Fourier Inverse Problems"
 ]
 page=st.sidebar.radio("Advanced Fourier Laboratory",pages)
 st.sidebar.divider()
@@ -294,6 +294,93 @@ elif page=="17 · Reciprocal-Space Geometry":
         lam=st.slider("Wavelength λ",.4,3.,1.,.02);kk=2*np.pi/lam;G=st.slider("|G|",.2,12.,6.,.1);theta=st.slider("G angle",0.,2*np.pi,0.,.02);q=np.linspace(0,2*np.pi,700);fig=go.Figure();fig.add_trace(go.Scatter(x=kk*np.cos(q),y=kk*np.sin(q),name="Ewald circle"));fig.add_trace(go.Scatter(x=[0,G*np.cos(theta)],y=[0,G*np.sin(theta)],mode="lines+markers",name="G"));fig.update_layout(template="plotly_white",height=520,title="2D Ewald construction",xaxis_title="kx",yaxis_title="ky",yaxis=dict(scaleanchor="x"));st.plotly_chart(fig,use_container_width=True);st.latex(r"\mathbf k_{out}-\mathbf k_{in}=\mathbf G")
     with tab2:
         a=st.slider("a",.5,3.,1.,.05);b1=np.array([2*np.pi/a,0.]);b2=np.array([0.,2*np.pi/a]);pts=np.array([i*b1+j*b2 for i in range(-4,5) for j in range(-4,5)]);fig=go.Figure(go.Scatter(x=pts[:,0],y=pts[:,1],mode="markers",name="G"));fig.add_trace(go.Scatter(x=[0],y=[0],mode="markers",marker=dict(size=14),name="Γ"));fig.update_layout(template="plotly_white",height=520,title="Square reciprocal lattice",xaxis_title="kx",yaxis_title="ky",yaxis=dict(scaleanchor="x"));st.plotly_chart(fig,use_container_width=True);st.latex(r"\mathbf a_i\cdot\mathbf b_j=2\pi\delta_{ij}");st.write("The first Brillouin zone is the Wigner–Seitz cell of this reciprocal lattice; crystal momentum is therefore intrinsically a Fourier-space coordinate.")
+
+
+elif page=="18 · Fourier Operators & Dispersion":
+    st.markdown('<div class="main-title">18 · Fourier Operators & Dispersion Relations</div>',unsafe_allow_html=True)
+    st.write("Translation-invariant differential operators become multiplication by their Fourier symbols. This is the operator-theoretic reason Fourier space is so powerful.")
+    op=st.selectbox("Operator",["First derivative","Second derivative","Laplacian","Helmholtz operator","Custom polynomial symbol"])
+    k=np.linspace(-12,12,1800)
+    if op=="First derivative": symbol=1j*k; formula=r"\partial_x\rightarrow ik"
+    elif op=="Second derivative": symbol=-k*k; formula=r"\partial_x^2\rightarrow-k^2"
+    elif op=="Laplacian": symbol=-k*k; formula=r"\nabla^2\rightarrow-|\mathbf k|^2"
+    elif op=="Helmholtz operator":
+        q=st.slider("k0",.5,8.,3.,.1);symbol=q*q-k*k;formula=r"(\partial_x^2+k_0^2)\rightarrow(k_0^2-k^2)"
+    else:
+        a=st.slider("a",-.5,.5,.1,.05);b=st.slider("b",-.5,.5,.2,.05);symbol=a*(1j*k)**3+b*(1j*k)**2+1j*k;formula=r"p(\partial_x)\rightarrow p(ik)"
+    fig=go.Figure();fig.add_trace(go.Scatter(x=k,y=np.real(symbol),name="Re symbol"));fig.add_trace(go.Scatter(x=k,y=np.imag(symbol),name="Im symbol"));fig.update_layout(template="plotly_white",height=500,title="Fourier symbol of the operator",xaxis_title="k",yaxis_title="operator symbol")
+    st.plotly_chart(fig,use_container_width=True);st.latex(formula)
+    st.write("A dispersion relation is essentially the spectrum of the governing operator. Zeros, poles and curvature of the symbol encode propagation, resonance and stability.")
+
+elif page=="19 · Wigner Phase Space":
+    st.markdown('<div class="main-title">19 · Wigner Phase Space: Fourier Structure Beyond Probability</div>',unsafe_allow_html=True)
+    st.write("The Wigner distribution combines position and wave-number information and exposes interference between Fourier components.")
+    x=np.linspace(-6,6,600);dx=x[1]-x[0];k=np.linspace(-8,8,500);sigma=st.slider("Packet width",.25,1.2,.5,.03);q0=st.slider("Carrier k",0.,5.,2.,.1)
+    psi=np.exp(-x*x/(4*sigma*sigma))*np.exp(1j*q0*x)
+    W=np.zeros((len(k),len(x)))
+    for j,x0 in enumerate(x):
+        s=np.linspace(-3,3,241)
+        vals=np.interp(x0+s,x,psi,left=0,right=0)*np.conjugate(np.interp(x0-s,x,psi,left=0,right=0))
+        W[:,j]=np.real(np.array([np.trapz(vals*np.exp(-1j*kk*s),s) for kk in k]))
+    st.plotly_chart(heat(W,"Wigner quasi-probability W(x,k)",x,k,"RdBu",560),use_container_width=True)
+    st.latex(r"W(x,k)=\frac{1}{2\pi}\int\psi^*(x+\xi/2)\psi(x-\xi/2)e^{-ik\xi}d\xi")
+    st.write("Unlike an ordinary probability density, W can become negative. Those negative regions encode quantum interference and have no classical probability interpretation.")
+
+elif page=="20 · Coherent Diffraction":
+    st.markdown('<div class="main-title">20 · Coherent Diffraction & Interference in Fourier Space</div>',unsafe_allow_html=True)
+    n=384;L=8.;x=np.linspace(-L/2,L/2,n);X,Y=np.meshgrid(x,x);sep=st.slider("Source separation",.2,4.,1.2,.05);phase=st.slider("Relative phase",-np.pi,np.pi,0.,.05);sig=st.slider("Spot width",.08,1.,.25,.02)
+    A=np.exp(-((X-sep/2)**2+Y**2)/(2*sig**2))+np.exp(1j*phase)*np.exp(-((X+sep/2)**2+Y**2)/(2*sig**2))
+    F=np.fft.fftshift(np.fft.fft2(A));I=abs(F)**2;I/=I.max()
+    c=st.columns(3);c[0].image(abs(A),caption="Coherent source amplitude");c[1].image(np.angle(A),caption="Source phase");c[2].image(np.log1p(I),caption="Fourier intensity")
+    st.latex(r"I(\mathbf k)=|A_1(\mathbf k)+e^{i\phi}A_2(\mathbf k)|^2")
+    st.write("The Fourier transform preserves complex amplitude, so relative phase survives into the interference pattern. This is the mathematical core of coherent diffraction.")
+
+elif page=="21 · Sampling & Aliasing Physics":
+    st.markdown('<div class="main-title">21 · Sampling, Spectral Replication & Aliasing</div>',unsafe_allow_html=True)
+    f0=st.slider("Signal frequency",.5,20.,6.,.1);fs=st.slider("Sampling frequency",4.,40.,10.,.1);duration=2.;t=np.linspace(0,duration,1800);continuous=np.cos(2*np.pi*f0*t);ts=np.arange(0,duration,1/fs);samples=np.cos(2*np.pi*f0*ts)
+    st.plotly_chart(linefig([(t,continuous,"continuous signal",{}),(ts,samples,"samples",{"mode":"markers"})],"Sampling in real time","t","amplitude"),use_container_width=True)
+    alias=abs(((f0+fs/2)%fs)-fs/2)
+    c=st.columns(3);c[0].metric("f0",f"{f0:.2f} Hz");c[1].metric("fs/2",f"{fs/2:.2f} Hz");c[2].metric("observed alias",f"{alias:.2f} Hz")
+    st.latex(r"x_s(t)=x(t)\sum_n\delta(t-nT)")
+    st.latex(r"X_s(f)=\frac1T\sum_m X(f-mf_s)")
+    st.write("Sampling creates periodic replicas of the spectrum. If replicas overlap, different physical frequencies become indistinguishable: aliasing is a loss of information caused by insufficient sampling.")
+
+elif page=="22 · 2D Green Functions":
+    st.markdown('<div class="main-title">22 · 2D Green Functions in Fourier Space</div>',unsafe_allow_html=True)
+    n=192;L=12.;x=np.linspace(-L/2,L/2,n);dx=x[1]-x[0];X,Y=np.meshgrid(x,x);sigma=st.slider("Source width",.1,1.5,.5,.03);source=np.exp(-(X*X+Y*Y)/(2*sigma**2));S=np.fft.fftshift(np.fft.fft2(source));kx=2*np.pi*np.fft.fftshift(np.fft.fftfreq(n,d=dx));KX,KY=np.meshgrid(kx,kx);K2=KX*KX+KY*KY;G=1/(K2+0.15**2);U=S*G;u=np.real(np.fft.ifft2(np.fft.ifftshift(U)))
+    c=st.columns(3);c[0].image(source,caption="Source s(x,y)");c[1].image(np.log1p(abs(G)),caption="Green kernel |G(k)|");c[2].image(u,caption="Response u(x,y)")
+    st.latex(r"-\nabla^2u+\mu^2u=s\quad\Longrightarrow\quad U(\mathbf k)=\frac{S(\mathbf k)}{|\mathbf k|^2+\mu^2}")
+    st.write("The inverse-square operator becomes an algebraic denominator in reciprocal space. This is the computational structure behind electrostatics, screened potentials and many field theories.")
+
+elif page=="23 · Bloch Waves & Band Formation":
+    st.markdown('<div class="main-title">23 · Bloch Waves: Fourier Components of a Periodic Potential</div>',unsafe_allow_html=True)
+    N=256;x=np.linspace(-8,8,N);V0=st.slider("Potential amplitude",0.,8.,3.,.1);a=st.slider("Lattice period",.8,3.,2.,.05);modes=st.slider("Fourier harmonics",1,5,3)
+    V=np.zeros_like(x)
+    for n0 in range(1,modes+1):V+=V0/n0**2*np.cos(2*np.pi*n0*x/a)
+    st.plotly_chart(linefig([(x,V,"V(x)",{})],"Periodic potential","x","V(x)"),use_container_width=True)
+    coeff=[]
+    for n0 in range(-6,7):
+        coeff.append(np.trapz(V*np.exp(-1j*2*np.pi*n0*x/a),x)/a)
+    ns=np.arange(-6,7)
+    st.plotly_chart(linefig([(ns,np.abs(coeff),"|V_G|",{})],"Potential Fourier components","reciprocal index","magnitude"),use_container_width=True)
+    st.latex(r"V(x)=\sum_G V_Ge^{iGx},\qquad \psi_k(x)=e^{ikx}u_k(x)")
+    st.write("A periodic crystal is naturally represented by reciprocal vectors G. The Fourier components of the potential couple plane waves whose momenta differ by reciprocal-lattice vectors; this is the origin of band formation.")
+
+elif page=="24 · Helmholtz & Wave-Vector Shells":
+    st.markdown('<div class="main-title">24 · Helmholtz Equation & Wave-Vector Geometry</div>',unsafe_allow_html=True)
+    k0=st.slider("Helmholtz wave number",.5,12.,4.,.1);q=np.linspace(-8,8,500);QX,QY=np.meshgrid(q,q);shell=np.abs(QX*QX+QY*QY-k0*k0);tol=st.slider("Shell thickness",.03,.5,.12,.01);mask=shell<tol
+    st.plotly_chart(heat(mask.astype(float),"Allowed wave-vector shell",q,q,"Viridis",550),use_container_width=True)
+    st.latex(r"(\nabla^2+k_0^2)u=0\quad\Longrightarrow\quad(|\mathbf k|^2-k_0^2)U(\mathbf k)=0")
+    st.write("A homogeneous Helmholtz field occupies a shell in Fourier space: every allowed plane wave has |k|=k0. This connects Fourier analysis directly to dispersion surfaces and wave propagation.")
+
+elif page=="25 · Fourier Inverse Problems":
+    st.markdown('<div class="main-title">25 · Fourier Inverse Problems & Regularization</div>',unsafe_allow_html=True)
+    st.write("Many experiments measure incomplete or noisy Fourier information. Recovering the field becomes an inverse problem.")
+    x=np.linspace(-6,6,2048);dx=x[1]-x[0];k=kaxis(len(x),dx);true=np.exp(-x*x)*np.cos(2*np.pi*1.5*x);H=np.exp(-0.025*k*k);Y=FT(true,dx)*H;noise=st.slider("Noise level",0.,.25,.05,.005);rng=np.random.default_rng(3);Yn=Y+noise*(rng.normal(size=len(Y))+1j*rng.normal(size=len(Y)))
+    lam=st.slider("Tikhonov regularization",0.,2.,.15,.01);rec=np.real(IFT(np.conjugate(H)*Yn/(abs(H)**2+lam),dx))
+    st.plotly_chart(linefig([(x,true,"true field",{}),(x,rec,"regularized reconstruction",{})],"Inverse Fourier problem","x","field"),use_container_width=True)
+    st.latex(r"\hat X=\frac{H^*Y}{|H|^2+\lambda}")
+    st.write("When the transfer function suppresses high-frequency information, naive inversion amplifies noise. Regularization trades exact inversion for stability—an essential idea in imaging, spectroscopy and inverse scattering.")
 
 st.divider()
 st.caption("Aman Edge Physics · Advanced Fourier Physics Laboratory")
