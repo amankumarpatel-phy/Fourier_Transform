@@ -306,29 +306,129 @@ elif page == "5 · Convolution":
     st.success("Convolution in the time domain corresponds to multiplication in the frequency domain. This is the mathematical foundation of many filters and linear systems.")
 
 elif page == "6 · 2D Image Fourier Transform":
-    st.markdown('<div class="main-title">6 · 2D Fourier Transform of Images</div>', unsafe_allow_html=True)
-    st.write("Spatial frequency analysis: large-scale structures correspond to low spatial frequencies; fine textures and edges generate higher spatial frequencies.")
-    uploaded=st.file_uploader("Upload an image (optional)",type=["png","jpg","jpeg"])
-    if uploaded:
-        img=Image.open(uploaded).convert("L")
-    else:
-        n=256
-        yy,xx=np.mgrid[-1:1:complex(n),-1:1:complex(n)]
-        img=np.exp(-((xx**2+yy**2)/.12))*255
-        img=(img + 45*np.sin(2*np.pi*18*xx)+25*np.sin(2*np.pi*27*yy)).clip(0,255).astype(np.uint8)
-        img=Image.fromarray(img)
-    arr=np.asarray(img,dtype=float)
-    F=np.fft.fftshift(np.fft.fft2(arr))
-    logmag=np.log1p(np.abs(F))
-    reconstructed=np.real(np.fft.ifft2(np.fft.ifftshift(F)))
-    c1,c2,c3=st.columns(3)
-    with c1: st.image(img,caption="Input / spatial domain",use_container_width=True)
-    with c2: st.image(logmag,caption="log(1 + |F(kx,ky)|)",use_container_width=True,clamp=True)
-    with c3: st.image(np.clip(reconstructed,0,255).astype(np.uint8),caption="Inverse FFT reconstruction",use_container_width=True)
-    st.latex(r"F(k_x,k_y)=\iint I(x,y)e^{-i(k_xx+k_yy)}\,dx\,dy")
-    st.info("The centered spectrum places the zero spatial-frequency component at the image center. Bright off-center structures indicate dominant periodic or directional features.")
+    st.markdown('<div class="main-title">6 · 2D Fourier Transform — How an Image Becomes Frequencies</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">A step-by-step spatial-frequency laboratory: image → complex basis → projection → magnitude/phase → frequency filtering → reconstruction.</div>', unsafe_allow_html=True)
 
-elif page == "7 · Diffraction & Reciprocal Space":
+    up=st.file_uploader("Upload an image",type=["png","jpg","jpeg"],key="ft2d_main")
+    if up:
+        img=Image.open(up).convert("L")
+    else:
+        N0=192
+        yy,xx=np.mgrid[:N0,:N0]
+        base=90+55*np.sin(2*np.pi*xx/24)+38*np.sin(2*np.pi*yy/15)
+        disk=((xx-70)**2+(yy-90)**2<24**2)*100
+        square=((xx>118)&(xx<158)&(yy>42)&(yy<82))*120
+        img=Image.fromarray(np.clip(base+disk+square,0,255).astype(np.uint8))
+
+    maxdim=st.slider("Analysis resolution",64,256,128,32)
+    I=np.asarray(img.resize((maxdim,maxdim)).convert("L"),dtype=float)
+    N=I.shape[0]
+
+    st.markdown("### 1. Start in real space")
+    c1,c2,c3=st.columns(3)
+    with c1:
+        st.image(I.astype(np.uint8),caption=f"Image I(x,y) — {N}×{N}",use_container_width=True)
+    with c2:
+        st.metric("Pixels",f"{N*N:,}")
+        st.metric("Mean intensity",f"{I.mean():.2f}")
+    with c3:
+        st.latex(r"I(x,y)")
+        st.write("Every pixel is a sample of a 2D spatial field. The 2D Fourier transform asks which spatial oscillations can reproduce this field.")
+
+    st.markdown("### 2. The actual 2D Fourier operation")
+    st.latex(r"F(k_x,k_y)=\sum_x\sum_y I(x,y)e^{-i(k_xx+k_yy)}")
+    st.write("For one selected spatial frequency, the image is multiplied by a complex 2D plane wave. Then **all pixels are summed**. That single complex number is one Fourier coefficient.")
+
+    fy=st.slider("Vertical spatial-frequency index kᵧ",-(N//2),N//2-1,0,key="ky2d")
+    fx=st.slider("Horizontal spatial-frequency index kₓ",-(N//2),N//2-1,0,key="kx2d")
+    X,Y=np.meshgrid(np.arange(N),np.arange(N))
+    kernel=np.exp(-2j*np.pi*(fx*X+fy*Y)/N)
+    projection=np.sum(I*kernel)/(N*N)
+
+    c1,c2,c3=st.columns(3)
+    with c1:
+        st.image(((np.real(kernel)+1)/2*255).astype(np.uint8),caption="Real part of complex basis",use_container_width=True)
+    with c2:
+        st.image(((np.imag(kernel)+1)/2*255).astype(np.uint8),caption="Imaginary part of complex basis",use_container_width=True)
+    with c3:
+        st.metric("Selected kₓ",fx)
+        st.metric("Selected kᵧ",fy)
+        st.metric("|F(kₓ,kᵧ)|",f"{abs(projection):.5f}")
+        st.metric("Phase",f"{np.angle(projection):.3f} rad")
+
+    st.markdown("### 3. Watch the projection happen")
+    st.write("The heatmap below shows the real-valued contribution I(x,y)·Re[e⁻ⁱ(kₓx+kᵧy)]. Positive and negative regions cancel. A strong Fourier coefficient occurs when the spatial pattern is well aligned with the selected basis.")
+    contribution=I*np.real(kernel)
+    fig=go.Figure(go.Heatmap(z=contribution,colorscale="RdBu",zmid=0,colorbar_title="Contribution"))
+    fig.update_layout(template="plotly_white",height=500,title="Pixel-by-pixel real projection")
+    st.plotly_chart(fig,use_container_width=True)
+
+    st.markdown("### 4. Compute the complete Fourier plane")
+    F=np.fft.fftshift(np.fft.fft2(I))
+    magnitude=np.abs(F)/(N*N)
+    phase=np.angle(F)
+    logmag=np.log1p(magnitude)
+    k=np.fft.fftshift(np.fft.fftfreq(N,d=1.0))
+    c1,c2=st.columns(2)
+    with c1:
+        fig=go.Figure(go.Heatmap(x=k,y=k,z=logmag,colorscale="Viridis",colorbar_title="log(1+|F|)"))
+        fig.update_layout(template="plotly_white",height=540,title="2D Fourier magnitude — frequency plane",xaxis_title="kₓ (cycles/pixel)",yaxis_title="kᵧ (cycles/pixel)")
+        st.plotly_chart(fig,use_container_width=True)
+    with c2:
+        fig=go.Figure(go.Heatmap(x=k,y=k,z=phase,colorscale="Twilight",zmin=-np.pi,zmax=np.pi,colorbar_title="phase"))
+        fig.update_layout(template="plotly_white",height=540,title="2D Fourier phase",xaxis_title="kₓ",yaxis_title="kᵧ")
+        st.plotly_chart(fig,use_container_width=True)
+
+    st.markdown("### 5. Why is the spectrum centered?")
+    st.write("The center corresponds to zero spatial frequency. Moving away from the center increases the magnitude of k. The opposite sides of the spectrum represent opposite spatial directions.")
+    center=N//2
+    radial=np.sqrt((np.arange(N)-center)[:,None]**2+(np.arange(N)-center)[None,:]**2)
+    bins=np.arange(0,N//2+1)
+    radial_amp=np.array([magnitude[(radial>=q)&(radial<q+1)].mean() if np.any((radial>=q)&(radial<q+1)) else 0 for q in bins])
+    fig=go.Figure(go.Scatter(x=bins,y=radial_amp,mode="lines+markers"))
+    fig.update_layout(template="plotly_white",height=360,title="Azimuthally averaged spectral magnitude",xaxis_title="Radial spatial-frequency index",yaxis_title="Mean |F|")
+    st.plotly_chart(fig,use_container_width=True)
+
+    st.markdown("### 6. Select frequencies and reconstruct the image")
+    radius=st.slider("Keep frequencies inside radius",2,N//2,20)
+    mask=radial<=radius
+    filtered=F*mask
+    reconstruction=np.real(np.fft.ifft2(np.fft.ifftshift(filtered)))
+    error=np.sqrt(np.mean((I-reconstruction)**2))
+    c1,c2,c3=st.columns(3)
+    with c1: st.image(np.clip(reconstruction,0,255).astype(np.uint8),caption=f"Low-frequency reconstruction — radius {radius}",use_container_width=True)
+    with c2: st.image(mask.astype(float),caption="Selected Fourier coefficients",use_container_width=True)
+    with c3:
+        st.metric("Reconstruction RMSE",f"{error:.3f}")
+        st.write("Increase the radius to progressively restore finer spatial detail.")
+
+    st.markdown("### 7. The separability of the 2D transform")
+    st.latex(r"F(k_x,k_y)=\mathcal F_y\{\mathcal F_x\{I(x,y)\}\}")
+    row=st.slider("Inspect image row",0,N-1,N//2,key="row2d")
+    row_fft=np.fft.fftshift(np.fft.fft(I[row,:]))
+    col=st.slider("Inspect image column",0,N-1,N//2,key="col2d")
+    col_fft=np.fft.fftshift(np.fft.fft(I[:,col]))
+    kk=np.fft.fftshift(np.fft.fftfreq(N))
+    fig=make_subplots(rows=1,cols=2,subplot_titles=("1D FFT of selected row","1D FFT of selected column"))
+    fig.add_trace(go.Scatter(x=kk,y=np.abs(row_fft)/N,name="Row"),row=1,col=1)
+    fig.add_trace(go.Scatter(x=kk,y=np.abs(col_fft)/N,name="Column"),row=1,col=2)
+    fig.update_layout(template="plotly_white",height=430)
+    st.plotly_chart(fig,use_container_width=True)
+    st.info("A 2D FFT can be computed efficiently as successive 1D FFTs: first along rows, then along columns. This is a crucial idea behind practical multidimensional FFT algorithms.")
+
+    st.markdown("### 8. Physical interpretation")
+    st.markdown("""
+    **Low spatial frequencies:** slowly varying brightness, broad objects and large-scale structure.
+
+    **High spatial frequencies:** edges, fine texture, sharp boundaries and small-scale periodic patterns.
+
+    **Magnitude:** how strongly a spatial frequency is present.
+
+    **Phase:** where that structure is positioned relative to the coordinate origin.
+
+    **Inverse transform:** recombines all complex coefficients to recover the image.
+    """)
+\nelif page == "7 · Diffraction & Reciprocal Space":
     st.markdown('<div class="main-title">7 · Diffraction, Reciprocal Space & Crystals</div>', unsafe_allow_html=True)
     st.write("A visual bridge from Fourier analysis to solid-state physics: periodic structures generate discrete reciprocal-space features.")
     N=st.slider("Number of lattice points",5,30,13)
