@@ -92,6 +92,47 @@ st.sidebar.markdown("**Core idea**")
 st.sidebar.latex(r"x(t) \xleftrightarrow{\mathcal F} X(f)")
 st.sidebar.caption("Complex signals become understandable as collections of frequencies.")
 
+def fourier_mechanism(page_name):
+    st.markdown("## How the Fourier Transform actually works")
+    st.write("Every module uses the same core operation: choose a trial frequency, multiply the signal by a complex sinusoid, and sum the contributions. Matching frequencies reinforce; non-matching frequencies cancel.")
+    with st.expander("Open the Fourier Transform mechanism", expanded=False):
+        st.latex(r"X(f)=\\int_{-\\infty}^{\\infty}x(t)e^{-i2\\pi ft}dt")
+        probe=st.slider("Trial frequency f (Hz)",0.0,100.0,10.0,0.5,key="global_probe")
+        fs=500.0; N=500; t=np.arange(N)/fs
+        demo=np.sin(2*np.pi*17*t)+0.45*np.sin(2*np.pi*41*t)
+        kernel=np.exp(-1j*2*np.pi*probe*t)
+        cumulative=np.cumsum(demo*kernel)/N
+        coeff=np.sum(demo*kernel)/N
+        c1,c2=st.columns(2)
+        with c1:
+            st.plotly_chart(line_fig(t[:300],demo[:300],"x(t)","Time (s)","Amplitude","Signal + Fourier probe",360),use_container_width=True)
+        with c2:
+            st.plotly_chart(line_fig(t[:300],np.real(cumulative[:300]),"Real accumulation","Time (s)","Coefficient","Running real projection",360),use_container_width=True)
+        st.latex(r"x(t)e^{-i2\\pi ft}=x(t)[\\cos(2\\pi ft)-i\\sin(2\\pi ft)]")
+        st.write("**Multiply:** compare the signal with a rotating complex sinusoid. **Accumulate:** add every contribution. **Interpret:** the magnitude gives the strength of that frequency and the phase gives its phase.")
+        st.latex(r"X(f)\\approx\\frac{1}{N}\\sum_{n=0}^{N-1}x[n]e^{-i2\\pi fn/f_s}")
+        a,b,c=st.columns(3)
+        a.metric("Trial frequency",f"{probe:.1f} Hz")
+        b.metric("|X(f)|",f"{abs(coeff):.4f}")
+        c.metric("Phase",f"{np.angle(coeff):.3f} rad")
+        st.markdown("### Why peaks appear")
+        st.write("At a matching frequency, the kernel removes the signal's phase rotation, so contributions point in nearly the same complex direction and add constructively. At other frequencies they rotate and cancel.")
+        if page_name=="11 · DFT vs FFT Benchmark":
+            st.info("The DFT performs this projection at discrete frequency bins. The FFT computes the identical coefficients through a much faster factorization.")
+        elif "STFT" in page_name:
+            st.info("STFT repeats the same projection inside a sliding window, producing a coefficient indexed by both time and frequency.")
+        elif "2D" in page_name or "Optics" in page_name or "Reciprocal" in page_name:
+            st.info("In two dimensions the kernel becomes exp[-i(kₓx+kᵧy)]. The multiply-and-sum principle is unchanged.")
+        elif "Filtering" in page_name:
+            st.info("Filtering modifies Fourier coefficients and then applies the inverse transform to reconstruct the physical-domain signal.")
+        elif "Convolution" in page_name:
+            st.info("The convolution theorem follows because Fourier projection converts convolution into multiplication of Fourier coefficients.")
+        else:
+            st.info("This same projection mechanism underlies Fourier series, spectra, filtering, diffraction, reciprocal space and quantum wavefunctions.")
+
+fourier_mechanism(page)
+
+
 if page == "Home & Concept":
     st.markdown('<div class="main-title">Fourier Transform Visualization Lab</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">From oscillations and sound to filtering, images, diffraction, reciprocal space and quantum mechanics.</div>', unsafe_allow_html=True)
