@@ -379,22 +379,6 @@ box-shadow:0 -4px 18px rgba(0,0,0,.18);
 .main .block-container{padding-bottom:70px;}
 </style>
 """,unsafe_allow_html=True)
-, text)
-            st.markdown(text)
-        else:
-            st.latex(part.strip())
-
-def shell(title,theory,derivation,application,warning=None):
-    st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
-    st.markdown('<div class="sub">Theory → derivation → interactive experiment → numerical verification → physical interpretation → research application</div>',unsafe_allow_html=True)
-    tabs=st.tabs(["01 · Theory","02 · Derivation","03 · Experiment","04 · Numerical Verification","05 · Physical Interpretation","06 · Research Application"])
-    with tabs[0]:
-        render_academic(theory)
-    with tabs[1]:
-        render_academic(derivation)
-    with tabs[5]:
-        render_academic(application)
-    return tabs
 def verify(name,a,b,tol=1e-5):
     err=np.linalg.norm(a-b)/(np.linalg.norm(a)+1e-15)
     c=st.columns(2);c[0].metric("Relative numerical error",f"{err:.3e}");c[1].metric("Status","PASS" if err<tol else "CHECK")
