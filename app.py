@@ -2,639 +2,254 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from scipy import signal
+from scipy import signal, ndimage
 from PIL import Image
-import io
 
-st.set_page_config(
-    page_title="Fourier Transform Visualization Lab",
-    page_icon="∿",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Advanced Fourier Physics Lab",page_icon="∿",layout="wide")
+st.markdown("""<style>
+.main-title{font-size:2.45rem;font-weight:800}.subtitle{opacity:.72}
+.box{padding:1rem;border-left:4px solid #4c78a8;background:rgba(76,120,168,.08);border-radius:6px}
+</style>""",unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-.main-title {font-size: 2.6rem; font-weight: 750; margin-bottom: 0.2rem;}
-.subtitle {font-size: 1.05rem; opacity: .75; margin-bottom: 1.2rem;}
-.section {font-size: 1.55rem; font-weight: 700; margin-top: 1rem;}
-.formula {padding: 0.8rem 1rem; border-left: 4px solid #4c78a8; background: rgba(76,120,168,.08); border-radius: 5px; font-family: serif;}
-.small {font-size: .9rem; opacity: .72;}
-</style>
-""", unsafe_allow_html=True)
+def lines(traces,title,xlabel,ylabel,height=430):
+    f=go.Figure()
+    for x,y,n,kw in traces:f.add_trace(go.Scatter(x=x,y=y,name=n,**kw))
+    f.update_layout(template="plotly_white",title=title,height=height,xaxis_title=xlabel,yaxis_title=ylabel,legend=dict(orientation="h"))
+    return f
 
-def fft_data(x, fs):
-    n = len(x)
-    X = np.fft.fft(x)
-    f = np.fft.fftfreq(n, 1/fs)
-    Xs = np.fft.fftshift(X)
-    fsx = np.fft.fftshift(f)
-    amp = np.abs(Xs) / n
-    return fsx, amp, Xs
+def FT(x,dx):
+    return np.fft.fftshift(np.fft.fft(np.asarray(x)))*dx
+def IFT(X,dx):
+    return np.fft.ifft(np.fft.ifftshift(X))/dx
+def Kaxis(n,dx): return np.fft.fftshift(np.fft.fftfreq(n,d=dx))
+def gaussian(x,s): return np.exp(-x*x/(2*s*s))/(s*np.sqrt(2*np.pi))
 
-def spectrum_positive(x, fs):
-    n = len(x)
-    f = np.fft.rfftfreq(n, 1/fs)
-    X = np.fft.rfft(x)
-    amp = 2*np.abs(X)/n
-    if n > 1:
-        amp[0] /= 2
-    return f, amp
-
-def make_signal(t, components, noise_std=0, impulse=False):
-    x = np.zeros_like(t)
-    for amp, freq, phase in components:
-        x += amp*np.sin(2*np.pi*freq*t + phase)
-    if noise_std > 0:
-        rng = np.random.default_rng(42)
-        x += rng.normal(0, noise_std, len(t))
-    if impulse:
-        idx = len(t)//2
-        width = max(2, len(t)//200)
-        x[idx-width:idx+width] += 2.5
-    return x
-
-def line_fig(x, y, name, xlabel, ylabel, title, height=430):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=x, y=y, mode="lines", name=name))
-    fig.update_layout(template="plotly_white", title=title, height=height,
-                      xaxis_title=xlabel, yaxis_title=ylabel,
-                      margin=dict(l=55,r=25,t=55,b=50))
-    return fig
-
-def metric(label, value, help_text=None):
-    st.metric(label, value, help=help_text)
-
-st.sidebar.title("Fourier Transform Lab")
-st.sidebar.caption("Aman Edge Physics")
-page = st.sidebar.radio(
-    "Choose a module",
-    [
-        "Home & Concept",
-        "1 · Fourier Series",
-        "2 · Time ↔ Frequency",
-        "3 · Harmonics & Spectrum",
-        "4 · Noise & Filtering",
-        "5 · Convolution",
-        "6 · 2D Image Fourier Transform",
-        "7 · Diffraction & Reciprocal Space",
-        "8 · Physics Applications",
-        "9 · Interactive Experiments",
-        "10 · STFT Spectrogram",
-        "11 · DFT vs FFT Benchmark",
-        "12 · Fourier Optics",
-        "13 · 2D Frequency Filtering",
-        "14 · 2D Reciprocal Lattice",
-    ],
-)
+pages=[
+"Home","1 · What the Transform Does","2 · Fourier Transform Pairs",
+"3 · Magnitude, Phase & Complex Plane","4 · Transform Theorems",
+"5 · Convolution Theorem","6 · Correlation & Translation",
+"7 · Uncertainty & Wave Packets","8 · 2D Fourier Transform",
+"9 · 2D Frequency-Space Filtering","10 · Fourier Optics",
+"11 · Reciprocal Lattice","12 · Crystal Structure Factor",
+"13 · Quantum Position–Momentum","14 · Fourier Methods for PDEs"
+]
+page=st.sidebar.radio("Advanced Fourier Laboratory",pages)
 st.sidebar.divider()
-st.sidebar.markdown("**Core idea**")
-st.sidebar.latex(r"x(t) \xleftrightarrow{\mathcal F} X(f)")
-st.sidebar.caption("Complex signals become understandable as collections of frequencies.")
+st.sidebar.latex(r"X(k)=\int x(r)e^{-ikr}\,dr")
+st.sidebar.caption("Continuous Fourier analysis • spatial frequency • reciprocal space")
 
-def fourier_mechanism(page_name):
-    st.markdown("## How the Fourier Transform actually works")
-    st.write("Every module uses the same core operation: choose a trial frequency, multiply the signal by a complex sinusoid, and sum the contributions. Matching frequencies reinforce; non-matching frequencies cancel.")
-    with st.expander("Open the Fourier Transform mechanism", expanded=False):
-        st.latex(r"X(f)=\\int_{-\\infty}^{\\infty}x(t)e^{-i2\\pi ft}dt")
-        probe=st.slider("Trial frequency f (Hz)",0.0,100.0,10.0,0.5,key="global_probe")
-        fs=500.0; N=500; t=np.arange(N)/fs
-        demo=np.sin(2*np.pi*17*t)+0.45*np.sin(2*np.pi*41*t)
-        kernel=np.exp(-1j*2*np.pi*probe*t)
-        cumulative=np.cumsum(demo*kernel)/N
-        coeff=np.sum(demo*kernel)/N
-        c1,c2=st.columns(2)
-        with c1:
-            st.plotly_chart(line_fig(t[:300],demo[:300],"x(t)","Time (s)","Amplitude","Signal + Fourier probe",360),use_container_width=True)
-        with c2:
-            st.plotly_chart(line_fig(t[:300],np.real(cumulative[:300]),"Real accumulation","Time (s)","Coefficient","Running real projection",360),use_container_width=True)
-        st.latex(r"x(t)e^{-i2\\pi ft}=x(t)[\\cos(2\\pi ft)-i\\sin(2\\pi ft)]")
-        st.write("**Multiply:** compare the signal with a rotating complex sinusoid. **Accumulate:** add every contribution. **Interpret:** the magnitude gives the strength of that frequency and the phase gives its phase.")
-        st.latex(r"X(f)\\approx\\frac{1}{N}\\sum_{n=0}^{N-1}x[n]e^{-i2\\pi fn/f_s}")
-        a,b,c=st.columns(3)
-        a.metric("Trial frequency",f"{probe:.1f} Hz")
-        b.metric("|X(f)|",f"{abs(coeff):.4f}")
-        c.metric("Phase",f"{np.angle(coeff):.3f} rad")
-        st.markdown("### Why peaks appear")
-        st.write("At a matching frequency, the kernel removes the signal's phase rotation, so contributions point in nearly the same complex direction and add constructively. At other frequencies they rotate and cancel.")
-        if page_name=="11 · DFT vs FFT Benchmark":
-            st.info("The DFT performs this projection at discrete frequency bins. The FFT computes the identical coefficients through a much faster factorization.")
-        elif "STFT" in page_name:
-            st.info("STFT repeats the same projection inside a sliding window, producing a coefficient indexed by both time and frequency.")
-        elif "2D" in page_name or "Optics" in page_name or "Reciprocal" in page_name:
-            st.info("In two dimensions the kernel becomes exp[-i(kₓx+kᵧy)]. The multiply-and-sum principle is unchanged.")
-        elif "Filtering" in page_name:
-            st.info("Filtering modifies Fourier coefficients and then applies the inverse transform to reconstruct the physical-domain signal.")
-        elif "Convolution" in page_name:
-            st.info("The convolution theorem follows because Fourier projection converts convolution into multiplication of Fourier coefficients.")
-        else:
-            st.info("This same projection mechanism underlies Fourier series, spectra, filtering, diffraction, reciprocal space and quantum wavefunctions.")
+def mechanism(key):
+    st.markdown("### How the transform works")
+    st.write("A Fourier coefficient is a complex projection. Choose a basis wave, multiply it by the field, and integrate. Matching oscillations add coherently; mismatched oscillations cancel.")
+    with st.expander("Open the projection laboratory"):
+        f0=st.slider("Probe frequency",0.,80.,17.,.5,key=key+"f")
+        t=np.linspace(-.5,.5,1000,endpoint=False); dx=t[1]-t[0]
+        x=np.cos(2*np.pi*17*t)+.5*np.cos(2*np.pi*35*t+.5)
+        basis=np.exp(-1j*2*np.pi*f0*t); z=x*basis; c=np.cumsum(z)*dx; C=c[-1]
+        a,b=st.columns(2)
+        with a: st.plotly_chart(lines([(t,x,"x(t)",{}),(t,np.real(basis),"Re basis",{"line":dict(dash="dash")})],"Field and complex probe","t","amplitude",360),use_container_width=True)
+        with b: st.plotly_chart(lines([(t,np.real(c),"Re accumulation",{}),(t,np.imag(c),"Im accumulation",{})],"Running complex integral","t","partial X(f)",360),use_container_width=True)
+        st.latex(r"X(f)=\int x(t)e^{-i2\pi ft}dt")
+        q=st.columns(3);q[0].metric("f",f"{f0:.1f} Hz");q[1].metric("|X(f)|",f"{abs(C):.5f}");q[2].metric("phase",f"{np.angle(C):.3f} rad")
+        st.write("The complex exponential is a rotating basis vector. At the matching frequency its rotation is cancelled by the signal's oscillation, producing a large resultant.")
 
-fourier_mechanism(page)
+if page=="Home":
+    st.markdown('<div class="main-title">Advanced Fourier Physics Laboratory</div>',unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Fourier transformation as a change of basis: from real-space fields to frequency, wave-vector and reciprocal space.</div>',unsafe_allow_html=True)
+    st.markdown('<div class="box"><b>Central idea:</b> Fourier analysis is not merely spectrum plotting. It is the projection of a physical field onto complex exponential basis functions.</div>',unsafe_allow_html=True)
+    st.latex(r"x(r)\xleftrightarrow{\mathcal F}X(k)")
+    st.markdown("### Physics pathway")
+    st.write("Projection → magnitude/phase → transform theorems → convolution → correlation → uncertainty → 2D spatial frequencies → diffraction → reciprocal lattice → structure factor → quantum momentum → PDE Green functions.")
+    t=np.linspace(-4,4,2048);dx=t[1]-t[0];x=gaussian(t,.55);X=FT(x,dx);k=Kaxis(len(t),dx)
+    a,b=st.columns(2)
+    with a:st.plotly_chart(lines([(t,x,"x(r)",{})],"Real space","r","x(r)"),use_container_width=True)
+    with b:st.plotly_chart(lines([(k,np.abs(X),"|X(k)|",{})],"Fourier space","k","magnitude"),use_container_width=True)
 
+elif page=="1 · What the Transform Does":
+    st.markdown('<div class="main-title">1 · What the Fourier Transform Actually Does</div>',unsafe_allow_html=True)
+    st.latex(r"X(k)=\int_{-\infty}^{\infty}x(r)e^{-ikr}dr")
+    mechanism("m1")
+    t=np.linspace(-1,1,1000);f0=st.slider("Complex-plane probe",1.,60.,17.,.5);x=np.cos(2*np.pi*17*t)+.5*np.cos(2*np.pi*31*t)
+    z=x*np.exp(-1j*2*np.pi*f0*t);c=np.cumsum(z)/len(z)
+    fig=go.Figure(go.Scatter(x=np.real(c),y=np.imag(c),mode="lines",name="partial integral"))
+    fig.add_trace(go.Scatter(x=[0,np.real(c[-1])],y=[0,np.imag(c[-1])],mode="lines+markers",name="final coefficient"))
+    fig.update_layout(template="plotly_white",height=500,title="Complex-plane accumulation",xaxis_title="Real",yaxis_title="Imaginary",yaxis=dict(scaleanchor="x"))
+    st.plotly_chart(fig,use_container_width=True)
+    st.write("This is the core mechanism behind every other module in this laboratory.")
 
-if page == "Home & Concept":
-    st.markdown('<div class="main-title">Fourier Transform Visualization Lab</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">From oscillations and sound to filtering, images, diffraction, reciprocal space and quantum mechanics.</div>', unsafe_allow_html=True)
+elif page=="2 · Fourier Transform Pairs":
+    st.markdown('<div class="main-title">2 · Continuous Fourier Transform Pairs</div>',unsafe_allow_html=True)
+    pair=st.selectbox("Physical function",["Gaussian","Rectangular aperture","Exponential","Sinc","Cosine"])
+    x=np.linspace(-10,10,4096);dx=x[1]-x[0];k=Kaxis(len(x),dx)
+    if pair=="Gaussian":s=st.slider("σ",.1,2.,.5,.05);u=gaussian(x,s)
+    elif pair=="Rectangular aperture":w=st.slider("Width",.2,6.,2.,.1);u=(abs(x)<w/2).astype(float)
+    elif pair=="Exponential":a=st.slider("α",.1,3.,1.,.1);u=np.exp(-a*abs(x))
+    elif pair=="Sinc":a=st.slider("Scale",.2,3.,1.,.1);u=np.sinc(a*x)
+    else:f0=st.slider("f0",.5,5.,2.,.1);u=np.cos(2*np.pi*f0*x)
+    U=FT(u,dx)
+    a,b=st.columns(2)
+    with a:st.plotly_chart(lines([(x,u,"x(r)",{})],"Real-space function","r","x(r)"),use_container_width=True)
+    with b:st.plotly_chart(lines([(k,np.real(U),"Re X",{}),(k,np.abs(U),"|X|",{"line":dict(dash="dash")})],"Transform","k","X(k)"),use_container_width=True)
+    st.info("The transform pair is a statement about how localization, periodicity and smoothness in one domain appear in the conjugate domain.")
 
-    c1,c2,c3 = st.columns(3)
-    with c1:
-        metric("Domains", "Time / Frequency")
-    with c2:
-        metric("Dimensions", "1D / 2D")
-    with c3:
-        metric("Applications", "Signal → Physics")
+elif page=="3 · Magnitude, Phase & Complex Plane":
+    st.markdown('<div class="main-title">3 · Magnitude, Phase & Complex Fourier Space</div>',unsafe_allow_html=True)
+    t=np.linspace(-3,3,4096);dx=t[1]-t[0];k=Kaxis(len(t),dx);shift=st.slider("Translation",-.9,.9,.25,.01);f0=st.slider("Carrier",.5,8.,3.,.1)
+    x=np.exp(-((t-shift)/.45)**2)*np.cos(2*np.pi*f0*(t-shift));X=FT(x,dx)
+    a,b=st.columns(2)
+    with a:st.plotly_chart(lines([(k,np.abs(X),"|X|",{})],"Magnitude","k","magnitude"),use_container_width=True)
+    with b:st.plotly_chart(lines([(k,np.unwrap(np.angle(X)),"phase",{})],"Phase","k","phase"),use_container_width=True)
+    st.latex(r"x(r-r_0)\leftrightarrow X(k)e^{-ikr_0}")
+    mode=st.radio("Reconstruct from",["Magnitude + phase","Magnitude only","Phase only"],horizontal=True)
+    mag=np.abs(X);ph=np.angle(X)
+    Y=X if mode=="Magnitude + phase" else (mag if mode=="Magnitude only" else np.exp(1j*ph))
+    xr=np.real(IFT(Y,dx))
+    st.plotly_chart(lines([(t,x,"original",{}),(t,xr,"reconstruction",{"line":dict(dash="dash")})],"Information carried by magnitude and phase","r","amplitude"),use_container_width=True)
 
-    st.markdown('<div class="section">The central question</div>', unsafe_allow_html=True)
-    st.write("A complicated waveform can look impossible to interpret in time. Fourier analysis asks a different question: **which elementary oscillations are hidden inside it?**")
-    st.markdown('<div class="formula">A signal can be represented as a superposition of sinusoidal components with different amplitudes, frequencies and phases.</div>', unsafe_allow_html=True)
-
-    t = np.linspace(0, 1, 2000, endpoint=False)
-    x = (1.0*np.sin(2*np.pi*5*t) + 0.55*np.sin(2*np.pi*13*t+0.5)
-         + 0.25*np.sin(2*np.pi*31*t+1.1))
-    f, a = spectrum_positive(x, 2000)
-    col1,col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(line_fig(t, x, "Composite", "Time", "Amplitude",
-                                 "A complicated signal in the time domain"), use_container_width=True)
-    with col2:
-        st.plotly_chart(line_fig(f[f<60], a[f<60], "Spectrum", "Frequency (Hz)", "Amplitude",
-                                 "The hidden frequency components"), use_container_width=True)
-
-    st.markdown('<div class="section">Why this matters</div>', unsafe_allow_html=True)
-    items = [
-        ("Voice & music", "Separate pitch, harmonics, noise and spectral content."),
-        ("Communication", "Analyze carriers, bandwidth and multicarrier systems such as OFDM."),
-        ("Imaging", "Manipulate spatial frequencies for filtering and reconstruction."),
-        ("Medical imaging", "Fourier reconstruction is central to MRI image formation."),
-        ("Machine diagnostics", "Faults often appear as characteristic vibration-frequency peaks."),
-        ("Solid state", "Reciprocal space, diffraction, Bloch waves and Brillouin zones rely on Fourier ideas."),
-        ("Quantum mechanics", "Position and momentum representations are Fourier-transform pairs."),
-    ]
-    for title, desc in items:
-        st.markdown(f"**{title}** — {desc}")
-
-elif page == "1 · Fourier Series":
-    st.markdown('<div class="main-title">1 · Fourier Series</div>', unsafe_allow_html=True)
-    st.write("Build a periodic waveform from harmonics. Increase the number of harmonics and watch the approximation converge.")
-    c1,c2,c3 = st.columns(3)
-    with c1: harmonics = st.slider("Number of odd harmonics", 1, 25, 5)
-    with c2: fundamental = st.slider("Fundamental frequency (Hz)", 1.0, 20.0, 2.0)
-    with c3: waveform = st.selectbox("Target waveform", ["Square wave", "Sawtooth", "Triangle wave"])
-
-    t = np.linspace(0, 2/fundamental, 3000)
-    if waveform == "Square wave":
-        target = signal.square(2*np.pi*fundamental*t)
-        approx = sum(4/np.pi/k*np.sin(2*np.pi*k*fundamental*t) for k in range(1,2*harmonics,2))
-    elif waveform == "Triangle wave":
-        target = signal.sawtooth(2*np.pi*fundamental*t, width=.5)
-        approx = sum((8/np.pi**2)*((-1)**((k-1)//2))/(k**2)*np.sin(2*np.pi*k*fundamental*t)
-                     for k in range(1,2*harmonics,2))
+elif page=="4 · Transform Theorems":
+    st.markdown('<div class="main-title">4 · Fourier Transform Theorems</div>',unsafe_allow_html=True)
+    theorem=st.selectbox("Explore",["Linearity","Translation","Scaling","Differentiation","Modulation"])
+    x=np.linspace(-6,6,4096);dx=x[1]-x[0];k=Kaxis(len(x),dx);g=np.exp(-x*x)*np.cos(2*np.pi*1.2*x)
+    if theorem=="Linearity":
+        a=st.slider("a",.1,2.,1.2,.1);b=st.slider("b",.1,2.,.7,.1);h=np.sin(2*np.pi*.7*x);A=FT(a*g+b*h,dx);B=a*FT(g,dx)+b*FT(h,dx)
+        st.plotly_chart(lines([(k,np.abs(A),"direct",{}),(k,np.abs(B),"aX+bH",{"line":dict(dash="dash")})],"Linearity verification","k","magnitude"),use_container_width=True);st.latex(r"\mathcal F\{ax+bh\}=aX+bH")
+    elif theorem=="Translation":
+        r0=st.slider("r0",-.9,.9,.3,.01);y=np.exp(-((x-r0))**2)*np.cos(2*np.pi*1.2*(x-r0));A=FT(g,dx);B=FT(y,dx)
+        st.plotly_chart(lines([(k,np.abs(A),"original |X|",{}),(k,np.abs(B),"shifted |X|",{"line":dict(dash="dash")})],"Translation preserves magnitude","k","magnitude"),use_container_width=True);st.latex(r"x(r-r_0)\leftrightarrow X(k)e^{-ikr_0}")
+    elif theorem=="Scaling":
+        a=st.slider("scale a",.25,3.,1.7,.05);y=np.interp(a*x,x,g,left=0,right=0);A=FT(g,dx);B=FT(y,dx)
+        st.plotly_chart(lines([(k,np.abs(A),"|X(k)|",{}),(k,np.abs(B),"scaled",{"line":dict(dash="dash")})],"Scaling theorem","k","magnitude"),use_container_width=True);st.latex(r"x(ar)\leftrightarrow |a|^{-1}X(k/a)")
+    elif theorem=="Differentiation":
+        dg=np.gradient(g,dx);A=FT(dg,dx);B=1j*k*FT(g,dx)
+        st.plotly_chart(lines([(k,np.abs(A),"F{dg/dr}",{}),(k,np.abs(B),"ikX",{"line":dict(dash="dash")})],"Differentiation becomes multiplication","k","magnitude"),use_container_width=True);st.latex(r"\mathcal F\{x'\}=ikX")
     else:
-        target = signal.sawtooth(2*np.pi*fundamental*t)
-        approx = sum((-2/np.pi)*(1/k)*np.sin(2*np.pi*k*fundamental*t) for k in range(1,harmonics+1))
-        approx += 0.5
+        q=st.slider("modulation q",.2,5.,1.5,.1);y=g*np.cos(2*np.pi*q*x);A=FT(g,dx);B=FT(y,dx)
+        st.plotly_chart(lines([(k,np.abs(A),"original",{}),(k,np.abs(B),"modulated",{})],"Modulation shifts spectral content","k","magnitude"),use_container_width=True);st.latex(r"\mathcal F\{x(r)e^{iqr}\}=X(k-q)")
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=t,y=target,name="Target",line=dict(dash="dash")))
-    fig.add_trace(go.Scatter(x=t,y=approx,name=f"Fourier approximation ({harmonics} terms)"))
-    fig.update_layout(template="plotly_white",height=500,xaxis_title="Time (s)",yaxis_title="Amplitude")
-    st.plotly_chart(fig,use_container_width=True)
-    st.latex(r"f(t)=\frac{a_0}{2}+\sum_{n=1}^{\infty}\left[a_n\cos(n\omega_0t)+b_n\sin(n\omega_0t)\right]")
-    st.info("Notice the Gibbs phenomenon near discontinuities: increasing the number of terms makes the transition narrower, but the overshoot does not disappear completely.")
+elif page=="5 · Convolution Theorem":
+    st.markdown('<div class="main-title">5 · Convolution Theorem</div>',unsafe_allow_html=True)
+    t=np.linspace(-6,6,4096);dx=t[1]-t[0];k=Kaxis(len(t),dx);w=st.slider("Kernel width",.15,1.5,.45,.05)
+    x=np.exp(-t*t)*np.cos(2*np.pi*1.1*t);h=gaussian(t,w);y=signal.fftconvolve(x,h,mode="same")*dx;X=FT(x,dx);H=FT(h,dx);Y=FT(y,dx)
+    fig=make_subplots(rows=2,cols=2,subplot_titles=("Functions","Convolution","Fourier factors","Product"))
+    fig.add_trace(go.Scatter(x=t,y=x,name="x"),row=1,col=1);fig.add_trace(go.Scatter(x=t,y=h,name="h"),row=1,col=1);fig.add_trace(go.Scatter(x=t,y=y,name="x*h"),row=1,col=2)
+    fig.add_trace(go.Scatter(x=k,y=np.abs(X),name="|X|"),row=2,col=1);fig.add_trace(go.Scatter(x=k,y=np.abs(H),name="|H|"),row=2,col=1);fig.add_trace(go.Scatter(x=k,y=np.abs(Y),name="|F{x*h}|"),row=2,col=2);fig.add_trace(go.Scatter(x=k,y=np.abs(X*H),name="|XH|"),row=2,col=2)
+    fig.update_layout(template="plotly_white",height=760);st.plotly_chart(fig,use_container_width=True)
+    st.latex(r"\boxed{\mathcal F\{x*h\}=XH}")
+    st.write("Translation-and-integration in real space becomes multiplication in Fourier space. This is the mathematical heart of linear filtering.")
 
-elif page == "2 · Time ↔ Frequency":
-    st.markdown('<div class="main-title">2 · Time ↔ Frequency Domain</div>', unsafe_allow_html=True)
-    st.write("Construct a signal and observe how its Fourier transform exposes the frequencies that created it.")
-    fs = st.slider("Sampling frequency (Hz)", 100, 5000, 1000, step=100)
-    duration = st.slider("Duration (s)", .25, 5.0, 1.0, step=.25)
-    n = int(fs*duration)
-    t = np.arange(n)/fs
-    c1,c2,c3 = st.columns(3)
-    with c1: f1 = st.slider("Frequency 1 (Hz)", 1, 200, 10)
-    with c2: f2 = st.slider("Frequency 2 (Hz)", 1, 200, 40)
-    with c3: f3 = st.slider("Frequency 3 (Hz)", 1, 200, 90)
-    x = make_signal(t, [(1,f1,0),(0.6,f2,.4),(0.3,f3,1.0)])
-    f, a = spectrum_positive(x, fs)
-    left,right=st.columns(2)
-    with left:
-        st.plotly_chart(line_fig(t[:min(len(t),3000)],x[:min(len(x),3000)],"x(t)","Time (s)","Amplitude","Time-domain signal"),use_container_width=True)
-    with right:
-        mask=f<=min(250,fs/2)
-        st.plotly_chart(line_fig(f[mask],a[mask],"|X(f)|","Frequency (Hz)","Magnitude","Frequency-domain spectrum"),use_container_width=True)
-    st.latex(r"X(f)=\int_{-\infty}^{\infty}x(t)e^{-i2\pi ft}\,dt")
-    st.success(f"Expected peaks: {f1} Hz, {f2} Hz and {f3} Hz. The FFT estimates these from the sampled signal.")
+elif page=="6 · Correlation & Translation":
+    st.markdown('<div class="main-title">6 · Correlation as Fourier-Domain Matching</div>',unsafe_allow_html=True)
+    t=np.linspace(-5,5,4096);dx=t[1]-t[0];shift=st.slider("Unknown displacement",-.4,.4,.08,.005);template=np.exp(-(t/.35)**2);obs=np.exp(-((t-shift)/.35)**2)+.08*np.random.default_rng(4).normal(size=len(t))
+    corr=signal.correlate(obs,template,mode="same")*dx;lag=t;peak=lag[np.argmax(corr)]
+    X=FT(obs,dx);H=FT(template,dx);corr2=np.real(IFT(X*np.conjugate(H),dx))
+    st.plotly_chart(lines([(t,obs,"observation",{}),(t,template,"template",{})],"Pattern matching","t","amplitude"),use_container_width=True)
+    st.plotly_chart(lines([(lag,corr,"direct correlation",{}),(lag,corr2,"Fourier-domain correlation",{"line":dict(dash="dash")})],"Correlation","lag","R"),use_container_width=True)
+    st.metric("Recovered displacement",f"{peak:.4f}")
+    st.latex(r"R_{xy}(\tau)=\mathcal F^{-1}\{X(k)Y^*(k)\}")
 
-elif page == "3 · Harmonics & Spectrum":
-    st.markdown('<div class="main-title">3 · Harmonics & Spectral Anatomy</div>', unsafe_allow_html=True)
-    st.write("Explore how amplitude, phase and harmonic content change a waveform.")
-    fs=2000
-    t=np.arange(0,1,1/fs)
-    amps=[]
-    comps=[]
-    cols=st.columns(4)
-    for i,(freq,default_amp) in enumerate([(5,1.0),(10,.5),(15,.33),(25,.2)]):
-        with cols[i]:
-            amp=st.slider(f"A{i+1} @ {freq} Hz",0.0,1.5,float(default_amp),.05)
-            phase=st.slider(f"Phase {freq} Hz",0.0,2*np.pi,0.0,0.1)
-        comps.append((amp,freq,phase))
-    x=make_signal(t,comps)
-    f,a=spectrum_positive(x,fs)
-    fig=make_subplots(rows=2,cols=1,shared_xaxes=False,vertical_spacing=.12,
-                      subplot_titles=("Composite waveform","Amplitude spectrum"))
-    fig.add_trace(go.Scatter(x=t[:1000],y=x[:1000],name="x(t)"),row=1,col=1)
-    mask=f<100
-    fig.add_trace(go.Bar(x=f[mask],y=a[mask],name="|X(f)|"),row=2,col=1)
-    fig.update_layout(template="plotly_white",height=700)
-    fig.update_xaxes(title_text="Time (s)",row=1,col=1)
-    fig.update_xaxes(title_text="Frequency (Hz)",row=2,col=1)
-    st.plotly_chart(fig,use_container_width=True)
-    st.markdown("### Spectral interpretation")
-    st.write("A sharp spectral line indicates a coherent sinusoidal component. Multiple lines indicate multiple oscillatory components. Phase changes the waveform's alignment in time but does not, for an isolated sinusoid, change the magnitude-spectrum peak location.")
+elif page=="7 · Uncertainty & Wave Packets":
+    st.markdown('<div class="main-title">7 · Fourier Localization and Uncertainty</div>',unsafe_allow_html=True)
+    s=st.slider("Gaussian width σ",.08,1.5,.35,.02);x=np.linspace(-7,7,8192);dx=x[1]-x[0];k=Kaxis(len(x),dx);psi=np.exp(-x*x/(4*s*s));P=np.abs(psi)**2;P/=P.sum()*dx;Psi=FT(psi,dx);Q=np.abs(Psi)**2;Q/=Q.sum()*(k[1]-k[0])
+    xm=np.sum(x*P)*dx;km=np.sum(k*Q)*(k[1]-k[0]);dxs=np.sqrt(np.sum((x-xm)**2*P)*dx);dks=np.sqrt(np.sum((k-km)**2*Q)*(k[1]-k[0]))
+    a,b=st.columns(2)
+    with a:st.plotly_chart(lines([(x,P,"|ψ(x)|²",{})],"Position-space localization","x","density"),use_container_width=True)
+    with b:st.plotly_chart(lines([(k,Q,"|Ψ(k)|²",{})],"Wave-number distribution","k","density"),use_container_width=True)
+    c=st.columns(3);c[0].metric("Δx",f"{dxs:.4f}");c[1].metric("Δk",f"{dks:.4f}");c[2].metric("ΔxΔk",f"{dxs*dks:.4f}")
+    st.latex(r"\Delta x\Delta k\geq\frac12")
+    st.write("Localization in real space requires a broad superposition of Fourier modes. The uncertainty principle is therefore deeply connected to Fourier duality.")
 
-elif page == "4 · Noise & Filtering":
-    st.markdown('<div class="main-title">4 · Noise, FFT and Filtering</div>', unsafe_allow_html=True)
-    st.write("See how unwanted frequency components can be identified and suppressed.")
-    fs=1000
-    t=np.arange(0,2,1/fs)
-    clean=np.sin(2*np.pi*12*t)+.55*np.sin(2*np.pi*35*t)
-    noise_level=st.slider("Noise level",0.0,1.5,.45,.05)
-    noise_freq=st.slider("Interference frequency (Hz)",50,250,120)
-    noisy=clean+noise_level*np.random.default_rng(7).normal(size=len(t))+.7*np.sin(2*np.pi*noise_freq*t)
-    cutoff=st.slider("Low-pass cutoff (Hz)",10,250,60)
-    b,a=signal.butter(4,cutoff/(fs/2),btype="low")
-    filtered=signal.filtfilt(b,a,noisy)
-    f1,a1=spectrum_positive(noisy,fs); f2,a2=spectrum_positive(filtered,fs)
-    fig=make_subplots(rows=3,cols=1,shared_xaxes=False,subplot_titles=("Clean vs noisy","Filtered signal","Spectra"))
-    fig.add_trace(go.Scatter(x=t[:1500],y=clean[:1500],name="Clean"),row=1,col=1)
-    fig.add_trace(go.Scatter(x=t[:1500],y=noisy[:1500],name="Noisy",opacity=.65),row=1,col=1)
-    fig.add_trace(go.Scatter(x=t[:1500],y=filtered[:1500],name="Filtered"),row=2,col=1)
-    m=f1<300
-    fig.add_trace(go.Scatter(x=f1[m],y=a1[m],name="Noisy spectrum"),row=3,col=1)
-    fig.add_trace(go.Scatter(x=f2[m],y=a2[m],name="Filtered spectrum"),row=3,col=1)
-    fig.update_layout(template="plotly_white",height=850)
-    st.plotly_chart(fig,use_container_width=True)
-    st.info(f"Fourth-order Butterworth low-pass filter with cutoff {cutoff} Hz. The interference at {noise_freq} Hz is strongly attenuated when it lies above the cutoff.")
-
-elif page == "5 · Convolution":
-    st.markdown('<div class="main-title">5 · Convolution & Fourier Multiplication</div>', unsafe_allow_html=True)
-    st.write("The convolution theorem is one of the most useful bridges between signal processing and Fourier analysis.")
-    n=600
-    x=np.zeros(n); x[220:380]=1
-    sigma=18
-    k=np.arange(-70,71)
-    kernel=np.exp(-k**2/(2*sigma**2)); kernel/=kernel.sum()
-    y=np.convolve(x,kernel,mode="same")
-    X=np.fft.rfft(x); K=np.fft.rfft(kernel,n=n); Y=np.fft.rfft(y)
-    c1,c2=st.columns(2)
-    with c1:
-        fig=go.Figure()
-        fig.add_trace(go.Scatter(y=x,name="Input x[n]"))
-        fig.add_trace(go.Scatter(y=kernel/kernel.max(),name="Kernel (scaled)"))
-        fig.add_trace(go.Scatter(y=y,name="Convolution y[n]"))
-        fig.update_layout(template="plotly_white",height=420,title="Time/domain view",xaxis_title="Sample")
-        st.plotly_chart(fig,use_container_width=True)
-    with c2:
-        f=np.arange(len(X))
-        fig=go.Figure()
-        fig.add_trace(go.Scatter(x=f,y=np.abs(X)/np.max(np.abs(X)),name="|FFT{x}|"))
-        fig.add_trace(go.Scatter(x=f,y=np.abs(K)/np.max(np.abs(K)),name="|FFT{h}|"))
-        fig.add_trace(go.Scatter(x=f,y=np.abs(Y)/np.max(np.abs(Y)),name="|FFT{x*h}|"))
-        fig.update_layout(template="plotly_white",height=420,title="Frequency-domain view",xaxis_title="Frequency bin")
-        st.plotly_chart(fig,use_container_width=True)
-    st.latex(r"\mathcal F\{x*h\}=X(f)H(f)")
-    st.success("Convolution in the time domain corresponds to multiplication in the frequency domain. This is the mathematical foundation of many filters and linear systems.")
-
-elif page == "6 · 2D Image Fourier Transform":
-    st.markdown('<div class="main-title">6 · 2D Fourier Transform — How an Image Becomes Frequencies</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">A step-by-step spatial-frequency laboratory: image → complex basis → projection → magnitude/phase → frequency filtering → reconstruction.</div>', unsafe_allow_html=True)
-
-    up=st.file_uploader("Upload an image",type=["png","jpg","jpeg"],key="ft2d_main")
-    if up:
-        img=Image.open(up).convert("L")
+elif page=="8 · 2D Fourier Transform":
+    st.markdown('<div class="main-title">8 · 2D Fourier Transform — Pixel-by-Pixel Projection</div>',unsafe_allow_html=True)
+    up=st.file_uploader("Upload image",type=["png","jpg","jpeg"],key="imgft")
+    if up:img=Image.open(up).convert("L")
     else:
-        N0=192
-        yy,xx=np.mgrid[:N0,:N0]
-        base=90+55*np.sin(2*np.pi*xx/24)+38*np.sin(2*np.pi*yy/15)
-        disk=((xx-70)**2+(yy-90)**2<24**2)*100
-        square=((xx>118)&(xx<158)&(yy>42)&(yy<82))*120
-        img=Image.fromarray(np.clip(base+disk+square,0,255).astype(np.uint8))
+        N=128;yy,xx=np.mgrid[:N,:N];a=110+60*np.sin(2*np.pi*xx/18)+35*np.sin(2*np.pi*yy/27)+100*((xx-40)**2+(yy-85)**2<16**2);img=Image.fromarray(np.clip(a,0,255).astype(np.uint8))
+    N=st.select_slider("Analysis resolution",[64,96,128,160,192],128);I=np.asarray(img.resize((N,N)),float);X,Y=np.meshgrid(np.arange(N),np.arange(N))
+    kx=st.slider("kx",-(N//2),N//2-1,6);ky=st.slider("ky",-(N//2),N//2-1,0);basis=np.exp(-2j*np.pi*(kx*X+ky*Y)/N);C=np.sum(I*basis)/(N*N)
+    c=st.columns(3);c[0].image(I.astype(np.uint8),caption="I(x,y)");c[1].image(((np.real(basis)+1)*127.5).astype(np.uint8),caption="Re basis");c[2].image(((np.imag(basis)+1)*127.5).astype(np.uint8),caption="Im basis")
+    st.latex(r"F(k_x,k_y)=\frac1{N^2}\sum_{x,y}I(x,y)e^{-i2\pi(k_xx+k_yy)/N}")
+    st.metric("Selected coefficient",f"|F|={abs(C):.6f}, phase={np.angle(C):.3f} rad")
+    st.plotly_chart(go.Figure(go.Heatmap(z=I*np.real(basis),colorscale="RdBu",zmid=0)).update_layout(template="plotly_white",height=500,title="Pixel contributions to one Fourier coefficient"),use_container_width=True)
+    F=np.fft.fftshift(np.fft.fft2(I));kk=np.fft.fftshift(np.fft.fftfreq(N));mag=np.abs(F);phase=np.angle(F)
+    a,b=st.columns(2)
+    with a:st.plotly_chart(go.Figure(go.Heatmap(x=kk,y=kk,z=np.log1p(mag),colorscale="Viridis")).update_layout(template="plotly_white",height=500,title="log magnitude"),use_container_width=True)
+    with b:st.plotly_chart(go.Figure(go.Heatmap(x=kk,y=kk,z=phase,colorscale="Twilight",zmin=-np.pi,zmax=np.pi)).update_layout(template="plotly_white",height=500,title="phase"),use_container_width=True)
+    R=np.sqrt((X-N/2)**2+(Y-N/2)**2);rad=st.slider("Reconstruction radius",2,N//2,18);mask=R<rad;rec=np.real(np.fft.ifft2(np.fft.ifftshift(F*mask)))
+    c=st.columns(2);c[0].image(np.clip(rec,0,255).astype(np.uint8),caption="Low-frequency reconstruction");c[1].image(mask.astype(float),caption="Selected Fourier coefficients")
+    st.info("A 2D transform is the same projection idea with plane waves exp[-i(kx x+ky y)].")
 
-    maxdim=st.slider("Analysis resolution",64,256,128,32)
-    I=np.asarray(img.resize((maxdim,maxdim)).convert("L"),dtype=float)
-    N=I.shape[0]
-
-    st.markdown("### 1. Start in real space")
-    c1,c2,c3=st.columns(3)
-    with c1:
-        st.image(I.astype(np.uint8),caption=f"Image I(x,y) — {N}×{N}",use_container_width=True)
-    with c2:
-        st.metric("Pixels",f"{N*N:,}")
-        st.metric("Mean intensity",f"{I.mean():.2f}")
-    with c3:
-        st.latex(r"I(x,y)")
-        st.write("Every pixel is a sample of a 2D spatial field. The 2D Fourier transform asks which spatial oscillations can reproduce this field.")
-
-    st.markdown("### 2. The actual 2D Fourier operation")
-    st.latex(r"F(k_x,k_y)=\sum_x\sum_y I(x,y)e^{-i(k_xx+k_yy)}")
-    st.write("For one selected spatial frequency, the image is multiplied by a complex 2D plane wave. Then **all pixels are summed**. That single complex number is one Fourier coefficient.")
-
-    fy=st.slider("Vertical spatial-frequency index kᵧ",-(N//2),N//2-1,0,key="ky2d")
-    fx=st.slider("Horizontal spatial-frequency index kₓ",-(N//2),N//2-1,0,key="kx2d")
-    X,Y=np.meshgrid(np.arange(N),np.arange(N))
-    kernel=np.exp(-2j*np.pi*(fx*X+fy*Y)/N)
-    projection=np.sum(I*kernel)/(N*N)
-
-    c1,c2,c3=st.columns(3)
-    with c1:
-        st.image(((np.real(kernel)+1)/2*255).astype(np.uint8),caption="Real part of complex basis",use_container_width=True)
-    with c2:
-        st.image(((np.imag(kernel)+1)/2*255).astype(np.uint8),caption="Imaginary part of complex basis",use_container_width=True)
-    with c3:
-        st.metric("Selected kₓ",fx)
-        st.metric("Selected kᵧ",fy)
-        st.metric("|F(kₓ,kᵧ)|",f"{abs(projection):.5f}")
-        st.metric("Phase",f"{np.angle(projection):.3f} rad")
-
-    st.markdown("### 3. Watch the projection happen")
-    st.write("The heatmap below shows the real-valued contribution I(x,y)·Re[e⁻ⁱ(kₓx+kᵧy)]. Positive and negative regions cancel. A strong Fourier coefficient occurs when the spatial pattern is well aligned with the selected basis.")
-    contribution=I*np.real(kernel)
-    fig=go.Figure(go.Heatmap(z=contribution,colorscale="RdBu",zmid=0,colorbar_title="Contribution"))
-    fig.update_layout(template="plotly_white",height=500,title="Pixel-by-pixel real projection")
-    st.plotly_chart(fig,use_container_width=True)
-
-    st.markdown("### 4. Compute the complete Fourier plane")
-    F=np.fft.fftshift(np.fft.fft2(I))
-    magnitude=np.abs(F)/(N*N)
-    phase=np.angle(F)
-    logmag=np.log1p(magnitude)
-    k=np.fft.fftshift(np.fft.fftfreq(N,d=1.0))
-    c1,c2=st.columns(2)
-    with c1:
-        fig=go.Figure(go.Heatmap(x=k,y=k,z=logmag,colorscale="Viridis",colorbar_title="log(1+|F|)"))
-        fig.update_layout(template="plotly_white",height=540,title="2D Fourier magnitude — frequency plane",xaxis_title="kₓ (cycles/pixel)",yaxis_title="kᵧ (cycles/pixel)")
-        st.plotly_chart(fig,use_container_width=True)
-    with c2:
-        fig=go.Figure(go.Heatmap(x=k,y=k,z=phase,colorscale="Twilight",zmin=-np.pi,zmax=np.pi,colorbar_title="phase"))
-        fig.update_layout(template="plotly_white",height=540,title="2D Fourier phase",xaxis_title="kₓ",yaxis_title="kᵧ")
-        st.plotly_chart(fig,use_container_width=True)
-
-    st.markdown("### 5. Why is the spectrum centered?")
-    st.write("The center corresponds to zero spatial frequency. Moving away from the center increases the magnitude of k. The opposite sides of the spectrum represent opposite spatial directions.")
-    center=N//2
-    radial=np.sqrt((np.arange(N)-center)[:,None]**2+(np.arange(N)-center)[None,:]**2)
-    bins=np.arange(0,N//2+1)
-    radial_amp=np.array([magnitude[(radial>=q)&(radial<q+1)].mean() if np.any((radial>=q)&(radial<q+1)) else 0 for q in bins])
-    fig=go.Figure(go.Scatter(x=bins,y=radial_amp,mode="lines+markers"))
-    fig.update_layout(template="plotly_white",height=360,title="Azimuthally averaged spectral magnitude",xaxis_title="Radial spatial-frequency index",yaxis_title="Mean |F|")
-    st.plotly_chart(fig,use_container_width=True)
-
-    st.markdown("### 6. Select frequencies and reconstruct the image")
-    radius=st.slider("Keep frequencies inside radius",2,N//2,20)
-    mask=radial<=radius
-    filtered=F*mask
-    reconstruction=np.real(np.fft.ifft2(np.fft.ifftshift(filtered)))
-    error=np.sqrt(np.mean((I-reconstruction)**2))
-    c1,c2,c3=st.columns(3)
-    with c1: st.image(np.clip(reconstruction,0,255).astype(np.uint8),caption=f"Low-frequency reconstruction — radius {radius}",use_container_width=True)
-    with c2: st.image(mask.astype(float),caption="Selected Fourier coefficients",use_container_width=True)
-    with c3:
-        st.metric("Reconstruction RMSE",f"{error:.3f}")
-        st.write("Increase the radius to progressively restore finer spatial detail.")
-
-    st.markdown("### 7. The separability of the 2D transform")
-    st.latex(r"F(k_x,k_y)=\mathcal F_y\{\mathcal F_x\{I(x,y)\}\}")
-    row=st.slider("Inspect image row",0,N-1,N//2,key="row2d")
-    row_fft=np.fft.fftshift(np.fft.fft(I[row,:]))
-    col=st.slider("Inspect image column",0,N-1,N//2,key="col2d")
-    col_fft=np.fft.fftshift(np.fft.fft(I[:,col]))
-    kk=np.fft.fftshift(np.fft.fftfreq(N))
-    fig=make_subplots(rows=1,cols=2,subplot_titles=("1D FFT of selected row","1D FFT of selected column"))
-    fig.add_trace(go.Scatter(x=kk,y=np.abs(row_fft)/N,name="Row"),row=1,col=1)
-    fig.add_trace(go.Scatter(x=kk,y=np.abs(col_fft)/N,name="Column"),row=1,col=2)
-    fig.update_layout(template="plotly_white",height=430)
-    st.plotly_chart(fig,use_container_width=True)
-    st.info("A 2D FFT can be computed efficiently as successive 1D FFTs: first along rows, then along columns. This is a crucial idea behind practical multidimensional FFT algorithms.")
-
-    st.markdown("### 8. Physical interpretation")
-    st.markdown("""
-    **Low spatial frequencies:** slowly varying brightness, broad objects and large-scale structure.
-
-    **High spatial frequencies:** edges, fine texture, sharp boundaries and small-scale periodic patterns.
-
-    **Magnitude:** how strongly a spatial frequency is present.
-
-    **Phase:** where that structure is positioned relative to the coordinate origin.
-
-    **Inverse transform:** recombines all complex coefficients to recover the image.
-    """)
-
-elif page == "7 · Diffraction & Reciprocal Space":
-    st.markdown('<div class="main-title">7 · Diffraction, Reciprocal Space & Crystals</div>', unsafe_allow_html=True)
-    st.write("A visual bridge from Fourier analysis to solid-state physics: periodic structures generate discrete reciprocal-space features.")
-    N=st.slider("Number of lattice points",5,30,13)
-    a=st.slider("Lattice spacing a",0.5,2.5,1.0,.1)
-    x=np.arange(-N,N+1)*a
-    density=np.zeros_like(x,dtype=float)
-    density[:] = 1
-    q=np.linspace(-12/a,12/a,2500)
-    # finite lattice structure factor
-    S=np.abs(np.sum(np.exp(-1j*np.outer(q,x)),axis=1))**2
-    S/=S.max()
-    c1,c2=st.columns(2)
-    with c1:
-        fig=go.Figure()
-        fig.add_trace(go.Scatter(x=x,y=density,mode="markers",marker=dict(size=9),name="Lattice sites"))
-        fig.update_layout(template="plotly_white",height=420,title="1D periodic lattice",xaxis_title="Position x",yaxis_title="Site occupancy")
-        st.plotly_chart(fig,use_container_width=True)
-    with c2:
-        fig=go.Figure()
-        fig.add_trace(go.Scatter(x=q,y=S,name="Structure factor"))
-        for m in range(-4,5):
-            if m != 0:
-                fig.add_vline(x=2*np.pi*m/a,line_dash="dot",opacity=.35)
-        fig.update_layout(template="plotly_white",height=420,title="Reciprocal-space intensity",xaxis_title="Wavevector q",yaxis_title="Normalized intensity")
-        st.plotly_chart(fig,use_container_width=True)
-    st.latex(r"\rho(x)=\sum_n\delta(x-na)\quad\Longrightarrow\quad \rho(q)\propto\sum_G\delta(q-G)")
-    st.write("The reciprocal lattice vectors are integer multiples of 2π/a in this 1D example. This same Fourier-space language generalizes to 2D and 3D crystals, diffraction and Brillouin zones.")
-
-elif page == "8 · Physics Applications":
-    st.markdown('<div class="main-title">8 · Fourier Transform Across Physics</div>', unsafe_allow_html=True)
-    tabs=st.tabs(["Quantum Mechanics","Wave Physics","Solid State","Communication"])
-    with tabs[0]:
-        st.markdown("### Position ↔ momentum")
-        st.latex(r"\phi(p)=\frac{1}{\sqrt{2\pi\hbar}}\int\psi(x)e^{-ipx/\hbar}\,dx")
-        x=np.linspace(-8,8,1600)
-        sigma=1.0
-        psi=np.exp(-x**2/(4*sigma**2))*np.exp(1j*3*x)
-        p=np.linspace(-8,8,1600)
-        phi=np.exp(-sigma**2*(p-3)**2)
-        fig=make_subplots(rows=1,cols=2,subplot_titles=("Position-space wavefunction","Momentum-space distribution"))
-        fig.add_trace(go.Scatter(x=x,y=np.real(psi),name="Re ψ(x)"),row=1,col=1)
-        fig.add_trace(go.Scatter(x=p,y=np.abs(phi)**2,name="|φ(p)|²"),row=1,col=2)
-        fig.update_layout(template="plotly_white",height=430)
-        st.plotly_chart(fig,use_container_width=True)
-    with tabs[1]:
-        st.write("For waves, Fourier decomposition separates a complicated field into plane-wave components characterized by wavevector k and frequency ω.")
-        st.latex(r"e^{i(kx-\omega t)}")
-        st.info("This viewpoint connects dispersion relations, wave packets, diffraction and interference.")
-    with tabs[2]:
-        st.write("Periodic potentials motivate reciprocal space. Fourier components of a crystal potential couple states whose wavevectors differ by reciprocal lattice vectors.")
-        st.latex(r"V(\mathbf r)=\sum_{\mathbf G}V_{\mathbf G}e^{i\mathbf G\cdot\mathbf r}")
-        st.info("This is a key mathematical step toward Bloch's theorem and band-structure calculations.")
-    with tabs[3]:
-        st.write("Digital communication uses frequency-selective processing and multicarrier representations. OFDM is a major example where the FFT/IFFT provides computationally efficient modulation and demodulation.")
-
-elif page == "9 · Interactive Experiments":
-    st.markdown('<div class="main-title">9 · Interactive Fourier Experiments</div>', unsafe_allow_html=True)
-    st.write("Use these experiments to develop intuition rather than memorizing formulas.")
-    exp=st.selectbox("Experiment",[
-        "Uncertainty: pulse width vs bandwidth",
-        "Sampling and aliasing",
-        "Spectral leakage and windowing",
-        "Time shift and phase",
-    ])
-    if exp=="Uncertainty: pulse width vs bandwidth":
-        width=st.slider("Gaussian pulse σ",.05,1.5,.35,.05)
-        fs=1000
-        t=np.linspace(-4,4,4000)
-        x=np.exp(-t**2/(2*width**2))
-        f,a=spectrum_positive(x,fs)
-        fig=make_subplots(rows=1,cols=2,subplot_titles=("Narrow/wide pulse","Frequency spectrum"))
-        fig.add_trace(go.Scatter(x=t,y=x,name="pulse"),row=1,col=1)
-        m=f<15
-        fig.add_trace(go.Scatter(x=f[m],y=a[m],name="spectrum"),row=1,col=2)
-        fig.update_layout(template="plotly_white",height=430)
-        st.plotly_chart(fig,use_container_width=True)
-        st.latex(r"\Delta x\,\Delta k\gtrsim \frac{1}{2}")
-        st.write("A narrower pulse in one domain requires a broader distribution of spatial/temporal frequencies in the conjugate domain.")
-    elif exp=="Sampling and aliasing":
-        fs=st.slider("Sampling frequency",20,200,60)
-        f0=st.slider("Signal frequency",5,120,45)
-        duration=1
-        t=np.linspace(0,duration,1000,endpoint=False)
-        ts=np.arange(0,duration,1/fs)
-        x=np.sin(2*np.pi*f0*t)
-        xs=np.sin(2*np.pi*f0*ts)
-        fig=go.Figure()
-        fig.add_trace(go.Scatter(x=t,y=x,name="Continuous-like signal"))
-        fig.add_trace(go.Scatter(x=ts,y=xs,mode="markers",name="Samples"))
-        fig.update_layout(template="plotly_white",height=500,xaxis_title="Time (s)",yaxis_title="Amplitude")
-        st.plotly_chart(fig,use_container_width=True)
-        st.warning(f"Nyquist frequency = {fs/2:.1f} Hz. If f₀ exceeds it, aliasing occurs.")
-    elif exp=="Spectral leakage and windowing":
-        cycles=st.slider("Number of cycles in observation",1.0,20.0,5.5,.5)
-        N=1024
-        t=np.arange(N)/N
-        x=np.sin(2*np.pi*cycles*t)
-        windows={"Rectangular":np.ones(N),"Hann":np.hanning(N),"Hamming":np.hamming(N),"Blackman":np.blackman(N)}
-        fig=go.Figure()
-        for name,w in windows.items():
-            f=np.fft.rfftfreq(N,1/N)
-            A=np.abs(np.fft.rfft(x*w)); A/=A.max()
-            fig.add_trace(go.Scatter(x=f[:100],y=A[:100],name=name))
-        fig.update_layout(template="plotly_white",height=500,title="Window comparison",xaxis_title="Frequency bin",yaxis_title="Normalized magnitude")
-        st.plotly_chart(fig,use_container_width=True)
-        st.write("When the observation interval does not contain an integer number of cycles, energy spreads into neighboring frequency bins. Window functions trade main-lobe width against sidelobe suppression.")
+elif page=="9 · 2D Frequency-Space Filtering":
+    st.markdown('<div class="main-title">9 · Filtering Directly in Spatial-Frequency Space</div>',unsafe_allow_html=True)
+    up=st.file_uploader("Image",type=["png","jpg","jpeg"],key="imgfilter")
+    if up:I=np.asarray(Image.open(up).convert("L").resize((256,256)),float)
     else:
-        shift=st.slider("Time shift",0.0,1.0,.25,.01)
-        f0=5
-        t=np.linspace(0,1,1000,endpoint=False)
-        x=np.sin(2*np.pi*f0*t)
-        xs=np.sin(2*np.pi*f0*(t-shift))
-        fig=go.Figure()
-        fig.add_trace(go.Scatter(x=t,y=x,name="Original"))
-        fig.add_trace(go.Scatter(x=t,y=xs,name="Shifted"))
-        fig.update_layout(template="plotly_white",height=500,xaxis_title="Time",yaxis_title="Amplitude")
-        st.plotly_chart(fig,use_container_width=True)
-        st.latex(r"x(t-t_0)\xleftrightarrow{\mathcal F}X(f)e^{-i2\pi f t_0}")
-        st.write("A shift in time changes phase in the frequency domain while leaving the magnitude spectrum unchanged.")
-
-elif page == "10 · STFT Spectrogram":
-    st.markdown('<div class="main-title">10 · Short-Time Fourier Transform & Spectrogram</div>', unsafe_allow_html=True)
-    fs=1000; duration=5; t=np.arange(0,duration,1/fs)
-    f0=st.slider("Start frequency (Hz)",5,100,10)
-    rate=st.slider("Chirp rate (Hz/s)",1,80,20)
-    nperseg=st.select_slider("STFT window",options=[64,128,256,512,1024],value=256)
-    x=signal.chirp(t,f0,duration,f0+rate*duration,method="linear")
-    f,tt,Z=signal.stft(x,fs=fs,nperseg=nperseg,noverlap=int(.75*nperseg))
-    P=20*np.log10(np.abs(Z)+1e-7)
-    fig=go.Figure(go.Heatmap(x=tt,y=f,z=P,colorscale="Viridis",colorbar_title="dB"))
-    fig.update_layout(template="plotly_white",height=560,title="Time-frequency spectrogram",xaxis_title="Time (s)",yaxis_title="Frequency (Hz)")
-    st.plotly_chart(fig,use_container_width=True)
-    st.latex(r"X(\\tau,f)=\\int x(t)w(t-\\tau)e^{-i2\\pi ft}dt")
-    st.info("The global FFT tells you what frequencies exist; the STFT also tells you when they exist.")
-
-elif page == "11 · DFT vs FFT Benchmark":
-    st.markdown('<div class="main-title">11 · Direct DFT vs FFT</div>', unsafe_allow_html=True)
-    N=st.select_slider("Samples",options=[64,128,256,512,1024,2048],value=512)
-    fs=1000; t=np.arange(N)/fs; x=np.sin(2*np.pi*73*t)+.4*np.sin(2*np.pi*181*t)
-    import time
-    t0=time.perf_counter(); Xd=np.array([np.sum(x*np.exp(-2j*np.pi*k*np.arange(N)/N)) for k in range(N)]); td=time.perf_counter()-t0
-    t0=time.perf_counter(); Xf=np.fft.fft(x); tf=time.perf_counter()-t0
-    c=st.columns(4)
-    c[0].metric("Direct DFT",f"{td*1000:.2f} ms"); c[1].metric("FFT",f"{tf*1000:.2f} ms"); c[2].metric("Speed-up",f"{td/tf:.1f}×"); c[3].metric("Max error",f"{np.max(np.abs(Xd-Xf)):.2e}")
-    f=np.fft.rfftfreq(N,1/fs); fig=go.Figure()
-    fig.add_trace(go.Scatter(x=f,y=np.abs(Xd[:N//2+1])/N,name="DFT"))
-    fig.add_trace(go.Scatter(x=f,y=np.abs(Xf[:N//2+1])/N,name="FFT",line=dict(dash="dash")))
-    fig.update_layout(template="plotly_white",height=500,title="Numerical equivalence of DFT and FFT",xaxis_title="Frequency (Hz)",yaxis_title="Magnitude")
-    st.plotly_chart(fig,use_container_width=True)
-    st.latex(r"O(N^2)\\quad\\rightarrow\\quad O(N\\log N)")
-
-elif page == "12 · Fourier Optics":
-    st.markdown('<div class="main-title">12 · Fourier Optics & Fraunhofer Diffraction</div>', unsafe_allow_html=True)
-    N=384; L=10; x=np.linspace(-L/2,L/2,N); X,Y=np.meshgrid(x,x)
-    aperture=st.selectbox("Aperture",["Single slit","Double slit","Circular","Square"])
-    width=st.slider("Aperture size",.2,4.,1.,.1)
-    if aperture=="Single slit": A=(np.abs(X)<width/2).astype(float)
-    elif aperture=="Double slit": A=((np.abs(X-width)<width*.15)|(np.abs(X+width)<width*.15)).astype(float)
-    elif aperture=="Circular": A=((X*X+Y*Y)<(width/2)**2).astype(float)
-    else: A=((np.abs(X)<width/2)&(np.abs(Y)<width/2)).astype(float)
-    F=np.fft.fftshift(np.fft.fft2(A)); I=np.abs(F)**2; I/=I.max()
-    fig=make_subplots(rows=1,cols=2,subplot_titles=("Aperture","Far-field intensity"))
-    fig.add_trace(go.Heatmap(x=x,y=x,z=A,colorscale="Gray",showscale=False),row=1,col=1)
-    fig.add_trace(go.Heatmap(x=x,y=x,z=np.log10(I+1e-8),colorscale="Viridis"),row=1,col=2)
-    fig.update_layout(template="plotly_white",height=540)
-    st.plotly_chart(fig,use_container_width=True)
-    st.latex(r"U(k_x,k_y)\\propto\\mathcal{F}\\{A(x,y)\\}")
-
-elif page == "13 · 2D Frequency Filtering":
-    st.markdown('<div class="main-title">13 · 2D Frequency-Domain Image Filtering</div>', unsafe_allow_html=True)
-    up=st.file_uploader("Upload image",type=["png","jpg","jpeg"],key="advanced_filter")
-    if up: I=np.asarray(Image.open(up).convert("L").resize((384,384)),float)
+        yy,xx=np.mgrid[:256,:256];I=100+60*np.sin(xx/6)+35*np.sin(yy/15)+25*np.random.default_rng(1).normal(size=(256,256));I=ndimage.gaussian_filter(I,1)
+    F=np.fft.fftshift(np.fft.fft2(I));N=I.shape[0];yy,xx=np.mgrid[:N,:N];R=np.sqrt((xx-N/2)**2+(yy-N/2)**2)
+    kind=st.selectbox("Transfer function H(kx,ky)",["Ideal low-pass","Ideal high-pass","Band-pass","Gaussian low-pass","Directional filter"]);c0=st.slider("Cutoff",2,120,35)
+    if kind=="Ideal low-pass":H=R<c0
+    elif kind=="Ideal high-pass":H=R>c0
+    elif kind=="Band-pass":H=(R>c0*.6)&(R<c0*1.4)
+    elif kind=="Gaussian low-pass":H=np.exp(-R**2/(2*c0*c0))
     else:
-        yy,xx=np.mgrid[:384,:384]; I=120+65*np.sin(xx/7)+35*np.sin(yy/17)+20*np.random.default_rng(3).normal(size=(384,384)); I=ndimage.gaussian_filter(I,1)
-    F=np.fft.fftshift(np.fft.fft2(I)); yy,xx=np.mgrid[:I.shape[0],:I.shape[1]]; cy,cx=np.array(I.shape)//2; R=np.sqrt((xx-cx)**2+(yy-cy)**2)
-    kind=st.selectbox("Filter",["Low-pass","High-pass","Band-pass","Gaussian low-pass"])
-    r1=st.slider("Inner radius",2,150,30); r2=st.slider("Outer radius",10,220,90)
-    if kind=="Low-pass": H=R<=r2
-    elif kind=="High-pass": H=R>=r1
-    elif kind=="Band-pass": H=(R>=r1)&(R<=r2)
-    else: H=np.exp(-(R**2)/(2*r2**2))
-    out=np.real(np.fft.ifft2(np.fft.ifftshift(F*H)))
-    c=st.columns(4); c[0].image(np.clip(I,0,255).astype(np.uint8),caption="Original"); c[1].image(H.astype(float),caption="Frequency mask"); c[2].image(np.log1p(np.abs(F*H)),caption="Filtered spectrum"); c[3].image(np.clip(out,0,255).astype(np.uint8),caption="Reconstruction")
-    st.info("The mask acts directly in spatial-frequency space. Low frequencies represent broad structure; high frequencies carry fine detail and edges.")
+        ang=np.arctan2(yy-N/2,xx-N/2);theta=st.slider("Direction",-np.pi,np.pi,0.,.05);width=st.slider("Angular width",.05,1.5,.3,.05);d=np.angle(np.exp(1j*(ang-theta)));H=(abs(d)<width)&(R<c0)
+    G=F*H;out=np.real(np.fft.ifft2(np.fft.ifftshift(G)));c=st.columns(4)
+    c[0].image(np.clip(I,0,255).astype(np.uint8),caption="Input");c[1].image(H.astype(float),caption="H(kx,ky)");c[2].image(np.log1p(abs(G)),caption="Filtered spectrum");c[3].image(np.clip(out,0,255).astype(np.uint8),caption="Reconstructed field")
+    st.latex(r"G(k_x,k_y)=H(k_x,k_y)F(k_x,k_y)")
+    st.write("The filter acts on Fourier coefficients, not directly on pixels. The inverse transform converts the modified spectral field back into a spatial image.")
 
-elif page == "14 · 2D Reciprocal Lattice":
-    st.markdown('<div class="main-title">14 · 2D Bravais Lattice → Reciprocal Space</div>', unsafe_allow_html=True)
-    lattice=st.selectbox("Direct lattice",["Square","Rectangular","Triangular"]); a=st.slider("Lattice constant a",.5,2.,1.,.1); b=st.slider("b",.5,2.,1.3,.1); M=8
-    pts=[]
-    for i in range(-M,M+1):
-        for j in range(-M,M+1):
-            if lattice=="Square": p=(i*a,j*a)
-            elif lattice=="Rectangular": p=(i*a,j*b)
-            else: p=(i*a+j*a/2,j*np.sqrt(3)*a/2)
-            pts.append(p)
-    pts=np.array(pts); q=np.linspace(-10,10,220); QX,QY=np.meshgrid(q,q); S=np.zeros_like(QX,dtype=complex)
-    for p in pts[::max(1,len(pts)//600)]: S += np.exp(-1j*(QX*p[0]+QY*p[1]))
-    I=np.abs(S)**2; I/=I.max()
-    fig=make_subplots(rows=1,cols=2,subplot_titles=("Direct lattice","Reciprocal-space intensity"))
-    fig.add_trace(go.Scatter(x=pts[:,0],y=pts[:,1],mode="markers",name="Sites"),row=1,col=1)
-    fig.add_trace(go.Heatmap(x=q,y=q,z=np.log10(I+1e-7),colorscale="Viridis"),row=1,col=2)
-    fig.update_layout(template="plotly_white",height=560)
-    st.plotly_chart(fig,use_container_width=True)
-    st.latex(r"\\mathbf a_i\\cdot\\mathbf b_j=2\\pi\\delta_{ij}")
-    st.write("This is the computational bridge from periodic real-space structure to reciprocal lattice, diffraction and eventually Brillouin zones.")
+elif page=="10 · Fourier Optics":
+    st.markdown('<div class="main-title">10 · Fourier Optics and Fraunhofer Diffraction</div>',unsafe_allow_html=True)
+    N=384;L=8;x=np.linspace(-L/2,L/2,N);X,Y=np.meshgrid(x,x);typ=st.selectbox("Aperture",["Single slit","Double slit","Circular","Square","2D grating"]);w=st.slider("Size",.15,3.,.8,.05)
+    if typ=="Single slit":A=(abs(X)<w/2)
+    elif typ=="Double slit":A=(abs(X-w)<.15*w)|(abs(X+w)<.15*w)
+    elif typ=="Circular":A=(X*X+Y*Y<(w/2)**2)
+    elif typ=="Square":A=(abs(X)<w/2)&(abs(Y)<w/2)
+    else:A=(np.sin(2*np.pi*X/w)>0)&(np.sin(2*np.pi*Y/w)>0)
+    U=np.fft.fftshift(np.fft.fft2(A.astype(float)));I=abs(U)**2;I/=I.max()
+    f=make_subplots(rows=1,cols=2,subplot_titles=("Aperture A(x,y)","Fraunhofer |F{A}|²"));f.add_trace(go.Heatmap(x=x,y=x,z=A,colorscale="Gray",showscale=False),row=1,col=1);f.add_trace(go.Heatmap(x=x,y=x,z=np.log10(I+1e-9),colorscale="Viridis"),row=1,col=2);f.update_layout(template="plotly_white",height=560);st.plotly_chart(f,use_container_width=True)
+    st.latex(r"U_{far}(k_x,k_y)\propto\mathcal F\{A(x,y)\}")
+    st.write("Far-field diffraction is a physical Fourier transform. Narrow apertures generate broad angular spectra; periodic apertures generate discrete diffraction orders.")
+
+elif page=="11 · Reciprocal Lattice":
+    st.markdown('<div class="main-title">11 · Reciprocal Lattice from Fourier Space</div>',unsafe_allow_html=True)
+    typ=st.selectbox("Direct lattice",["1D chain","Square","Rectangular","Triangular"]);a=st.slider("a",.5,2.,1.,.1);b=st.slider("b",.5,2.,1.4,.1);M=12
+    if typ=="1D chain":
+        r=np.arange(-M,M+1)*a;q=np.linspace(-12,12,2500);S=abs(np.sum(np.exp(-1j*np.outer(q,r)),axis=1))**2;S/=S.max();f=make_subplots(rows=1,cols=2,subplot_titles=("Real lattice","Fourier intensity"));f.add_trace(go.Scatter(x=r,y=np.ones_like(r),mode="markers"),row=1,col=1);f.add_trace(go.Scatter(x=q,y=S),row=1,col=2);f.update_layout(template="plotly_white",height=470);st.plotly_chart(f,use_container_width=True)
+    else:
+        pts=[]
+        for i in range(-M,M+1):
+            for j in range(-M,M+1):
+                p=(i*a,j*a) if typ=="Square" else ((i*a,j*b) if typ=="Rectangular" else (i*a+j*a/2,j*np.sqrt(3)*a/2));pts.append(p)
+        pts=np.array(pts);q=np.linspace(-10,10,260);QX,QY=np.meshgrid(q,q);S=np.zeros_like(QX,dtype=complex)
+        for p in pts[::max(1,len(pts)//700)]:S+=np.exp(-1j*(QX*p[0]+QY*p[1]))
+        I=abs(S)**2;I/=I.max();f=make_subplots(rows=1,cols=2,subplot_titles=("Real lattice","Reciprocal-space intensity"));f.add_trace(go.Scatter(x=pts[:,0],y=pts[:,1],mode="markers"),row=1,col=1);f.add_trace(go.Heatmap(x=q,y=q,z=np.log10(I+1e-8),colorscale="Viridis"),row=1,col=2);f.update_layout(template="plotly_white",height=550);st.plotly_chart(f,use_container_width=True)
+    st.latex(r"\mathbf a_i\cdot\mathbf b_j=2\pi\delta_{ij}")
+    st.write("Periodic real-space order transforms into concentrated reciprocal-space order. Reciprocal lattice vectors are Fourier-space signatures of translational symmetry.")
+
+elif page=="12 · Crystal Structure Factor":
+    st.markdown('<div class="main-title">12 · Crystal Structure Factor</div>',unsafe_allow_html=True)
+    basis=st.selectbox("Basis",["Monatomic","Diatomic","Four-site square","Custom three-site"]);H=st.slider("h",-8,8,1);K=st.slider("k",-8,8,1)
+    B={"Monatomic":np.array([[0,0]]),"Diatomic":np.array([[0,0],[.5,.5]]),"Four-site square":np.array([[0,0],[.5,0],[0,.5],[.5,.5]]),"Custom three-site":np.array([[0,0],[.25,.5],[.7,.2]])}[basis]
+    Fb=np.sum(np.exp(-2j*np.pi*(H*B[:,0]+K*B[:,1])));R=8;Fl=np.sum([np.exp(-2j*np.pi*(H*i+K*j)) for i in range(-R,R+1) for j in range(-R,R+1)]);Ftot=Fb*Fl
+    c=st.columns(3);c[0].metric("Basis |F_b|",f"{abs(Fb):.4f}");c[1].metric("Basis phase",f"{np.angle(Fb):.3f}");c[2].metric("Total |F|",f"{abs(Ftot):.4f}")
+    st.latex(r"F(\mathbf G)=\sum_{\mathbf R}e^{-i\mathbf G\cdot\mathbf R}\sum_jf_je^{-i\mathbf G\cdot\mathbf r_j}")
+    st.write("The lattice determines where reciprocal peaks can occur; the basis determines their intensity and systematic absences. This is the Fourier origin of diffraction selection rules.")
+
+elif page=="13 · Quantum Position–Momentum":
+    st.markdown('<div class="main-title">13 · Quantum Position ↔ Momentum</div>',unsafe_allow_html=True)
+    s=st.slider("Wave-packet width",.15,1.5,.45,.03);p0=st.slider("Mean k",0.,8.,3.,.1);x=np.linspace(-8,8,4096);dx=x[1]-x[0];k=Kaxis(len(x),dx);psi=np.exp(-x*x/(4*s*s))*np.exp(1j*p0*x);Psi=FT(psi,dx)
+    a,b=st.columns(2)
+    with a:st.plotly_chart(lines([(x,np.real(psi),"Re ψ",{}),(x,np.imag(psi),"Im ψ",{})],"Position-space state","x","ψ"),use_container_width=True)
+    with b:st.plotly_chart(lines([(k,abs(Psi)**2,"|ψ̃(k)|²",{})],"Momentum-space probability","k","density"),use_container_width=True)
+    st.latex(r"\tilde\psi(k)=\frac1{\sqrt{2\pi}}\int\psi(x)e^{-ikx}dx")
+    st.write("Momentum representation is the Fourier representation of the same state. Changing localization changes the momentum-space width.")
+
+elif page=="14 · Fourier Methods for PDEs":
+    st.markdown('<div class="main-title">14 · Fourier Transform as a PDE Solver</div>',unsafe_allow_html=True)
+    s=st.slider("Source width",.2,1.5,.6,.05);x=np.linspace(-10,10,4096);dx=x[1]-x[0];k=Kaxis(len(x),dx);source=gaussian(x,s);S=FT(source,dx);eps=1e-7;U=S/(k*k+eps);U[abs(k)<1e-10]=0;u=np.real(IFT(U,dx))
+    f=make_subplots(rows=2,cols=1,subplot_titles=("Real-space source and solution","Fourier-space amplitudes"));f.add_trace(go.Scatter(x=x,y=source,name="source"),row=1,col=1);f.add_trace(go.Scatter(x=x,y=u,name="u"),row=1,col=1);f.add_trace(go.Scatter(x=k,y=abs(S),name="|S(k)|"),row=2,col=1);f.add_trace(go.Scatter(x=k,y=abs(U),name="|U(k)|"),row=2,col=1);f.update_layout(template="plotly_white",height=700);st.plotly_chart(f,use_container_width=True)
+    st.latex(r"-u''(x)=s(x)\xrightarrow{\mathcal F}k^2U(k)=S(k)")
+    st.write("Spatial derivatives become multiplication by ik. A differential equation therefore becomes algebraic in Fourier space, after which the inverse transform returns the physical solution.")
 
 st.divider()
-st.caption("Aman Edge Physics · Fourier Transform Visualization Lab · Built with Python, NumPy, SciPy, Plotly and Streamlit")
+st.caption("Aman Edge Physics · Advanced Fourier Physics Laboratory")
