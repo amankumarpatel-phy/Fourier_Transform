@@ -428,7 +428,8 @@ elif page == "6 · 2D Image Fourier Transform":
 
     **Inverse transform:** recombines all complex coefficients to recover the image.
     """)
-\nelif page == "7 · Diffraction & Reciprocal Space":
+
+elif page == "7 · Diffraction & Reciprocal Space":
     st.markdown('<div class="main-title">7 · Diffraction, Reciprocal Space & Crystals</div>', unsafe_allow_html=True)
     st.write("A visual bridge from Fourier analysis to solid-state physics: periodic structures generate discrete reciprocal-space features.")
     N=st.slider("Number of lattice points",5,30,13)
