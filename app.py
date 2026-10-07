@@ -41,8 +41,15 @@ def shell(title,theory,derivation,application,warning=None):
         render_academic(theory)
     with tabs[1]:
         render_academic(derivation)
+    with tabs[4]:
+        st.markdown("### Numerical verification protocol")
+        st.markdown(f"Every numerical result in **{title}** should be checked against an independent reconstruction, analytical identity, limiting case, or conservation relation. Module-specific verification results are shown below this framework.")
+        st.info("Verification target: agreement between the governing Fourier-space relation and the independently computed numerical result.")
     with tabs[5]:
         render_academic(application)
+        st.markdown("---")
+        st.markdown("### Research-use perspective")
+        st.markdown(f"**{title}** is presented as a computational experiment: the Fourier representation is not only calculated, but connected to a measurable or interpretable physical quantity.")
     return tabs
 
 def verify(name,a,b,tol=1e-5):
