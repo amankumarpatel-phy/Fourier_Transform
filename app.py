@@ -24,15 +24,32 @@ def heat(z,title,x=None,y=None,scale="Viridis",height=500):
     f=go.Figure(go.Heatmap(z=z,x=x,y=y,colorscale=scale));f.update_layout(template="plotly_white",title=title,height=height);return f
 def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
-    """Render academic prose and display mathematics cleanly in separate blocks."""
+    """Render academic prose with properly typeset display and inline LaTeX."""
     import re
-    parts=re.split(r'\\\\\\[([\\s\\S]*?)\\\\\\]', content)
+    parts=re.split(r'\\\\\[([\\s\\S]*?)\\\\\]', content)
     for part in parts:
         if not part.strip():
             continue
-        if part is not None and not part.startswith('\\\\'):
+        if part.startswith(r'\\'):
+            st.latex(part.strip())
+        else:
             text=part
-            text=re.sub(r'\\\\\\((.*?)\\\\\\)', r'$\\1def verify(name,a,b,tol=1e-5):
+            text=re.sub(r'\\\\\((.*?)\\\\\)', r'$\\1$', text)
+            st.markdown(text)
+
+def shell(title,theory,derivation,application,warning=None):
+    st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
+    st.markdown('<div class="sub">Theory → Derivation → Interactive Experiment → Numerical Verification → Physical Interpretation → Research Application</div>',unsafe_allow_html=True)
+    tabs=st.tabs(["01 · Theory","02 · Derivation","03 · Experiment","04 · Numerical Verification","05 · Physical Interpretation","06 · Research Application"])
+    with tabs[0]:
+        render_academic(theory)
+    with tabs[1]:
+        render_academic(derivation)
+    with tabs[5]:
+        render_academic(application)
+    return tabs
+
+def verify(name,a,b,tol=1e-5):
     err=np.linalg.norm(a-b)/(np.linalg.norm(a)+1e-15)
     c=st.columns(2);c[0].metric("Relative numerical error",f"{err:.3e}");c[1].metric("Status","PASS" if err<tol else "CHECK")
     st.progress(float(max(0,min(1,1-err/max(tol,1e-15)))),text=name)
