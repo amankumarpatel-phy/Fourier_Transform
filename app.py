@@ -29,23 +29,17 @@ def heat(z,title,x=None,y=None,scale="Viridis",height=500):
     f=go.Figure(go.Heatmap(z=z,x=x,y=y,colorscale=scale));f.update_layout(template="plotly_white",title=title,height=height);return f
 def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
-    """Render mixed academic prose and display mathematics safely."""
+    """Render academic prose with safely separated display and inline mathematics."""
     import re
-    chunks = content.split(r"\[")
-    for i, chunk in enumerate(chunks):
-        if i > 0:
-            math_text, sep, rest = chunk.partition(r"\]")
-            if sep:
-                if rest.strip():
-                    st.latex(math_text.strip())
-                    inline = re.sub(r"\\\((.*?)\\\)", r"$\\1$", rest)
-                    st.markdown(inline)
-                else:
-                    st.latex(math_text.strip())
-                continue
-        inline = re.sub(r"\\\((.*?)\\\)", r"$\\1$", chunk)
-        if inline.strip():
-            st.markdown(inline)
+    blocks = re.split(r"(\\\\\[.*?\\\\\])", content, flags=re.S)
+    for block in blocks:
+        if not block.strip():
+            continue
+        if block.startswith(r"\[") and block.endswith(r"\]"):
+            st.latex(block[2:-2].strip())
+        else:
+            prose = re.sub(r"\\\((.*?)\\\)", r"$\\1$", block)
+            st.markdown(prose)
 
 def shell(title,theory,derivation,application,warning=None):
     st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
