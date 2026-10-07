@@ -342,9 +342,7 @@ elif choice=="Short-Time Fourier Transform":
 
 st.markdown("""
 <div class="fixed-footer">
-  <span><b>Aman Edge Physics</b></span>
-  <span>Fourier Physics Research Workstation</span>
-  <span>Computational Mathematical Physics</span>
+  <span>Developed with Love ❤️ by Aman Kumar Patel</span>
 </div>
 <style>
 .fixed-footer{
@@ -367,7 +365,6 @@ font-size:13px;
 letter-spacing:.15px;
 box-shadow:0 -4px 18px rgba(0,0,0,.18);
 }
-.fixed-footer span+span:before{content:"•";margin-right:18px;opacity:.55}
 .main .block-container{padding-bottom:70px;}
 </style>
 """,unsafe_allow_html=True)
