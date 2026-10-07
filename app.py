@@ -31,7 +31,7 @@ pages=[
 "7 · Uncertainty & Wave Packets","8 · 2D Fourier Transform",
 "9 · 2D Frequency-Space Filtering","10 · Fourier Optics",
 "11 · Reciprocal Lattice","12 · Crystal Structure Factor",
-"13 · Quantum Position–Momentum","14 · Fourier Methods for PDEs"
+"13 · Quantum Position–Momentum","14 · Fourier Methods for PDEs","15 · Graduate Fourier Physics","16 · Fourier Imaging Theory","17 · Reciprocal-Space Geometry"
 ]
 page=st.sidebar.radio("Advanced Fourier Laboratory",pages)
 st.sidebar.divider()
@@ -250,6 +250,50 @@ elif page=="14 · Fourier Methods for PDEs":
     f=make_subplots(rows=2,cols=1,subplot_titles=("Real-space source and solution","Fourier-space amplitudes"));f.add_trace(go.Scatter(x=x,y=source,name="source"),row=1,col=1);f.add_trace(go.Scatter(x=x,y=u,name="u"),row=1,col=1);f.add_trace(go.Scatter(x=k,y=abs(S),name="|S(k)|"),row=2,col=1);f.add_trace(go.Scatter(x=k,y=abs(U),name="|U(k)|"),row=2,col=1);f.update_layout(template="plotly_white",height=700);st.plotly_chart(f,use_container_width=True)
     st.latex(r"-u''(x)=s(x)\xrightarrow{\mathcal F}k^2U(k)=S(k)")
     st.write("Spatial derivatives become multiplication by ik. A differential equation therefore becomes algebraic in Fourier space, after which the inverse transform returns the physical solution.")
+\n
+elif page=="15 · Graduate Fourier Physics":
+    st.markdown('<div class="main-title">15 · Graduate Fourier Physics</div>',unsafe_allow_html=True)
+    tab1,tab2,tab3,tab4,tab5=st.tabs(["Parseval / Plancherel","Duality","Uncertainty","Green Functions","Complex-plane projection"])
+    x=np.linspace(-8,8,8192,endpoint=False);dx=x[1]-x[0];k=kaxis(len(x),dx);u=np.exp(-x*x)*np.cos(2*np.pi*1.7*x);U=FT(u,dx)
+    with tab1:
+        Er=np.sum(abs(u)**2)*dx;Ek=np.sum(abs(U)**2)*(k[1]-k[0])/(2*np.pi)
+        c=st.columns(3);c[0].metric("∫|x|²dr",f"{Er:.7f}");c[1].metric("∫|X|²dk/2π",f"{Ek:.7f}");c[2].metric("relative error",f"{abs(Er-Ek)/Er:.2e}")
+        st.latex(r"\int |x(r)|^2dr=\frac{1}{2\pi}\int |X(k)|^2dk")
+        st.plotly_chart(linefig([(k,abs(U)**2/(2*np.pi),"spectral energy",{})],"Energy distribution in Fourier space","k","|X(k)|²/2π"),use_container_width=True)
+    with tab2:
+        st.latex(r"\mathcal F\{\mathcal F\{x(r)\}\}=2\pi x(-r)")
+        st.write("Applying the transform twice returns the original function with reversal and the normalization dictated by the chosen convention.")
+        X2=FT(U, k[1]-k[0]);st.plotly_chart(linefig([(x,u,"original",{}),(x,np.real(X2/(2*np.pi)),"double transform / 2π",{"line":dict(dash="dash")})],"Fourier duality check","r","amplitude"),use_container_width=True)
+    with tab3:
+        sig=st.slider("Gaussian σ",.08,1.5,.35,.02,key="grad_unc");psi=np.exp(-x*x/(4*sig*sig));P=abs(psi)**2;P/=P.sum()*dx;Psi=FT(psi,dx);Q=abs(Psi)**2;Q/=Q.sum()*(k[1]-k[0]);xm=np.sum(x*P)*dx;km=np.sum(k*Q)*(k[1]-k[0]);sx=np.sqrt(np.sum((x-xm)**2*P)*dx);sk=np.sqrt(np.sum((k-km)**2*Q)*(k[1]-k[0]))
+        c=st.columns(3);c[0].metric("Δx",f"{sx:.5f}");c[1].metric("Δk",f"{sk:.5f}");c[2].metric("ΔxΔk",f"{sx*sk:.5f}")
+        st.latex(r"\Delta x\Delta k\geq\frac12")
+        st.plotly_chart(linefig([(x,P,"|ψ(x)|²",{})],"Localization ↔ spectral width","x","density"),use_container_width=True)
+    with tab4:
+        alpha=st.slider("Green-kernel scale",.1,2.,.5,.05,key="green");source=gaussian(x,.5);S=FT(source,dx);G=1/(k*k+alpha*alpha);response=np.real(IFT(S*G,dx))
+        st.latex(r"u=G*s\quad\Longleftrightarrow\quad U(k)=G(k)S(k)")
+        st.plotly_chart(linefig([(x,source,"source",{}),(x,response,"response",{})],"Green-function response","x","field"),use_container_width=True)
+    with tab5:
+        probe=st.slider("Probe k",0.,50.,17.,.5,key="complexprobe");t=np.linspace(-.5,.5,1600,endpoint=False);dx2=t[1]-t[0];sig=np.cos(2*np.pi*17*t)+.5*np.cos(2*np.pi*31*t);z=sig*np.exp(-1j*2*np.pi*probe*t);c=np.cumsum(z)*dx2
+        fig=go.Figure(go.Scatter(x=np.real(c),y=np.imag(c),mode="lines",name="partial projection"));fig.add_trace(go.Scatter(x=[0,c[-1].real],y=[0,c[-1].imag],mode="lines+markers",name="result"));fig.update_layout(template="plotly_white",height=500,title="Complex-plane accumulation",xaxis_title="Re X",yaxis_title="Im X",yaxis=dict(scaleanchor="x"));st.plotly_chart(fig,use_container_width=True)
+        st.metric("Final coefficient magnitude",f"{abs(c[-1]):.6f}")
+
+elif page=="16 · Fourier Imaging Theory":
+    st.markdown('<div class="main-title">16 · Fourier Imaging Theory: PSF → OTF → MTF</div>',unsafe_allow_html=True)
+    n=256;L=8.;x=np.linspace(-L/2,L/2,n);X,Y=np.meshgrid(x,x);sigma=st.slider("PSF width",.1,2.,.55,.03);psf=np.exp(-(X*X+Y*Y)/(2*sigma*sigma));psf/=psf.sum();otf=np.fft.fftshift(np.fft.fft2(psf));mtf=abs(otf);mtf/=mtf.max()
+    c=st.columns(3);c[0].image(psf,caption="PSF h(x,y)");c[1].image(np.log1p(abs(otf)),caption="log |OTF|");c[2].image(mtf,caption="MTF")
+    yy,xx=np.indices((n,n));R=np.sqrt((xx-n/2)**2+(yy-n/2)**2);bins=np.arange(n//2);profile=np.array([mtf[(R>=q)&(R<q+1)].mean() for q in bins])
+    st.plotly_chart(linefig([(bins,profile,"MTF",{})],"Radial modulation transfer function","spatial-frequency radius","MTF"),use_container_width=True)
+    st.latex(r"OTF=\mathcal F\{PSF\},\qquad MTF=|OTF|")
+    st.write("This connects Fourier analysis directly to microscope, camera and optical-system resolution: an imaging system is a spatial-frequency transfer function.")
+
+elif page=="17 · Reciprocal-Space Geometry":
+    st.markdown('<div class="main-title">17 · Reciprocal-Space Geometry: Ewald Sphere & Brillouin Zone</div>',unsafe_allow_html=True)
+    tab1,tab2=st.tabs(["Ewald construction","Reciprocal lattice"])
+    with tab1:
+        lam=st.slider("Wavelength λ",.4,3.,1.,.02);kk=2*np.pi/lam;G=st.slider("|G|",.2,12.,6.,.1);theta=st.slider("G angle",0.,2*np.pi,0.,.02);q=np.linspace(0,2*np.pi,700);fig=go.Figure();fig.add_trace(go.Scatter(x=kk*np.cos(q),y=kk*np.sin(q),name="Ewald circle"));fig.add_trace(go.Scatter(x=[0,G*np.cos(theta)],y=[0,G*np.sin(theta)],mode="lines+markers",name="G"));fig.update_layout(template="plotly_white",height=520,title="2D Ewald construction",xaxis_title="kx",yaxis_title="ky",yaxis=dict(scaleanchor="x"));st.plotly_chart(fig,use_container_width=True);st.latex(r"\mathbf k_{out}-\mathbf k_{in}=\mathbf G")
+    with tab2:
+        a=st.slider("a",.5,3.,1.,.05);b1=np.array([2*np.pi/a,0.]);b2=np.array([0.,2*np.pi/a]);pts=np.array([i*b1+j*b2 for i in range(-4,5) for j in range(-4,5)]);fig=go.Figure(go.Scatter(x=pts[:,0],y=pts[:,1],mode="markers",name="G"));fig.add_trace(go.Scatter(x=[0],y=[0],mode="markers",marker=dict(size=14),name="Γ"));fig.update_layout(template="plotly_white",height=520,title="Square reciprocal lattice",xaxis_title="kx",yaxis_title="ky",yaxis=dict(scaleanchor="x"));st.plotly_chart(fig,use_container_width=True);st.latex(r"\mathbf a_i\cdot\mathbf b_j=2\pi\delta_{ij}");st.write("The first Brillouin zone is the Wigner–Seitz cell of this reciprocal lattice; crystal momentum is therefore intrinsically a Fourier-space coordinate.")
 
 st.divider()
 st.caption("Aman Edge Physics · Advanced Fourier Physics Laboratory")
