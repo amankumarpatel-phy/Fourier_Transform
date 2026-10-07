@@ -124,7 +124,7 @@ elif choice=="Magnitude & Phase":
     """Phase is fundamental in coherent imaging, diffraction, crystallography, interferometry and inverse problems.""")
     with tabs[2]:
         x=np.linspace(-5,5,8192,endpoint=False);dx=x[1]-x[0];k=K(len(x),dx);r0=st.slider("Translation r₀",-1.5,1.5,.35,.01);f0=st.slider("Carrier",.5,5.,2.,.1);u=gaussian(x-r0,.5)*np.cos(2*np.pi*f0*(x-r0));U=FT(u,dx)
-        st.plotly_chart(fig1([(k,abs(U),"magnitude",{})],"Magnitude","k","|X|"),use_container_width=True);st.plotly_chart(fig1([(k,np.unwrap(np.angle(U))),"phase","k","phase"),use_container_width=True)
+        st.plotly_chart(fig1([(k,abs(U),"magnitude",{})],"Magnitude","k","|X|"),use_container_width=True);st.plotly_chart(fig1([(k,np.unwrap(np.angle(U)),"phase",{})],"Phase","k","phase"),use_container_width=True)
         mode=st.radio("Reconstruct with",["Magnitude + phase","Magnitude only","Phase only"],horizontal=True);Y=U if mode=="Magnitude + phase" else (abs(U) if mode=="Magnitude only" else np.exp(1j*np.angle(U)));rec=np.real(IFT(Y,dx));st.plotly_chart(fig1([(x,u,"original",{}),(x,rec,"reconstruction",{})],"What information survives?","r","field"),use_container_width=True)
     with tabs[3]:
         U0=FT(gaussian(x,.5)*np.cos(2*np.pi*f0*x),dx);shifted=FT(gaussian(x-r0,.5)*np.cos(2*np.pi*f0*(x-r0)),dx);pred=U0*np.exp(-1j*k*r0);verify("Translation theorem",shifted,pred,1e-3)
