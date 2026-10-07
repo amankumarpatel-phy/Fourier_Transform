@@ -80,6 +80,11 @@ page = st.sidebar.radio(
         "7 · Diffraction & Reciprocal Space",
         "8 · Physics Applications",
         "9 · Interactive Experiments",
+        "10 · STFT Spectrogram",
+        "11 · DFT vs FFT Benchmark",
+        "12 · Fourier Optics",
+        "13 · 2D Frequency Filtering",
+        "14 · 2D Reciprocal Lattice",
     ],
 )
 st.sidebar.divider()
@@ -402,6 +407,92 @@ elif page == "9 · Interactive Experiments":
         st.plotly_chart(fig,use_container_width=True)
         st.latex(r"x(t-t_0)\xleftrightarrow{\mathcal F}X(f)e^{-i2\pi f t_0}")
         st.write("A shift in time changes phase in the frequency domain while leaving the magnitude spectrum unchanged.")
+
+elif page == "10 · STFT Spectrogram":
+    st.markdown('<div class="main-title">10 · Short-Time Fourier Transform & Spectrogram</div>', unsafe_allow_html=True)
+    fs=1000; duration=5; t=np.arange(0,duration,1/fs)
+    f0=st.slider("Start frequency (Hz)",5,100,10)
+    rate=st.slider("Chirp rate (Hz/s)",1,80,20)
+    nperseg=st.select_slider("STFT window",options=[64,128,256,512,1024],value=256)
+    x=signal.chirp(t,f0,duration,f0+rate*duration,method="linear")
+    f,tt,Z=signal.stft(x,fs=fs,nperseg=nperseg,noverlap=int(.75*nperseg))
+    P=20*np.log10(np.abs(Z)+1e-7)
+    fig=go.Figure(go.Heatmap(x=tt,y=f,z=P,colorscale="Viridis",colorbar_title="dB"))
+    fig.update_layout(template="plotly_white",height=560,title="Time-frequency spectrogram",xaxis_title="Time (s)",yaxis_title="Frequency (Hz)")
+    st.plotly_chart(fig,use_container_width=True)
+    st.latex(r"X(\\tau,f)=\\int x(t)w(t-\\tau)e^{-i2\\pi ft}dt")
+    st.info("The global FFT tells you what frequencies exist; the STFT also tells you when they exist.")
+
+elif page == "11 · DFT vs FFT Benchmark":
+    st.markdown('<div class="main-title">11 · Direct DFT vs FFT</div>', unsafe_allow_html=True)
+    N=st.select_slider("Samples",options=[64,128,256,512,1024,2048],value=512)
+    fs=1000; t=np.arange(N)/fs; x=np.sin(2*np.pi*73*t)+.4*np.sin(2*np.pi*181*t)
+    import time
+    t0=time.perf_counter(); Xd=np.array([np.sum(x*np.exp(-2j*np.pi*k*np.arange(N)/N)) for k in range(N)]); td=time.perf_counter()-t0
+    t0=time.perf_counter(); Xf=np.fft.fft(x); tf=time.perf_counter()-t0
+    c=st.columns(4)
+    c[0].metric("Direct DFT",f"{td*1000:.2f} ms"); c[1].metric("FFT",f"{tf*1000:.2f} ms"); c[2].metric("Speed-up",f"{td/tf:.1f}×"); c[3].metric("Max error",f"{np.max(np.abs(Xd-Xf)):.2e}")
+    f=np.fft.rfftfreq(N,1/fs); fig=go.Figure()
+    fig.add_trace(go.Scatter(x=f,y=np.abs(Xd[:N//2+1])/N,name="DFT"))
+    fig.add_trace(go.Scatter(x=f,y=np.abs(Xf[:N//2+1])/N,name="FFT",line=dict(dash="dash")))
+    fig.update_layout(template="plotly_white",height=500,title="Numerical equivalence of DFT and FFT",xaxis_title="Frequency (Hz)",yaxis_title="Magnitude")
+    st.plotly_chart(fig,use_container_width=True)
+    st.latex(r"O(N^2)\\quad\\rightarrow\\quad O(N\\log N)")
+
+elif page == "12 · Fourier Optics":
+    st.markdown('<div class="main-title">12 · Fourier Optics & Fraunhofer Diffraction</div>', unsafe_allow_html=True)
+    N=384; L=10; x=np.linspace(-L/2,L/2,N); X,Y=np.meshgrid(x,x)
+    aperture=st.selectbox("Aperture",["Single slit","Double slit","Circular","Square"])
+    width=st.slider("Aperture size",.2,4.,1.,.1)
+    if aperture=="Single slit": A=(np.abs(X)<width/2).astype(float)
+    elif aperture=="Double slit": A=((np.abs(X-width)<width*.15)|(np.abs(X+width)<width*.15)).astype(float)
+    elif aperture=="Circular": A=((X*X+Y*Y)<(width/2)**2).astype(float)
+    else: A=((np.abs(X)<width/2)&(np.abs(Y)<width/2)).astype(float)
+    F=np.fft.fftshift(np.fft.fft2(A)); I=np.abs(F)**2; I/=I.max()
+    fig=make_subplots(rows=1,cols=2,subplot_titles=("Aperture","Far-field intensity"))
+    fig.add_trace(go.Heatmap(x=x,y=x,z=A,colorscale="Gray",showscale=False),row=1,col=1)
+    fig.add_trace(go.Heatmap(x=x,y=x,z=np.log10(I+1e-8),colorscale="Viridis"),row=1,col=2)
+    fig.update_layout(template="plotly_white",height=540)
+    st.plotly_chart(fig,use_container_width=True)
+    st.latex(r"U(k_x,k_y)\\propto\\mathcal{F}\\{A(x,y)\\}")
+
+elif page == "13 · 2D Frequency Filtering":
+    st.markdown('<div class="main-title">13 · 2D Frequency-Domain Image Filtering</div>', unsafe_allow_html=True)
+    up=st.file_uploader("Upload image",type=["png","jpg","jpeg"],key="advanced_filter")
+    if up: I=np.asarray(Image.open(up).convert("L").resize((384,384)),float)
+    else:
+        yy,xx=np.mgrid[:384,:384]; I=120+65*np.sin(xx/7)+35*np.sin(yy/17)+20*np.random.default_rng(3).normal(size=(384,384)); I=ndimage.gaussian_filter(I,1)
+    F=np.fft.fftshift(np.fft.fft2(I)); yy,xx=np.mgrid[:I.shape[0],:I.shape[1]]; cy,cx=np.array(I.shape)//2; R=np.sqrt((xx-cx)**2+(yy-cy)**2)
+    kind=st.selectbox("Filter",["Low-pass","High-pass","Band-pass","Gaussian low-pass"])
+    r1=st.slider("Inner radius",2,150,30); r2=st.slider("Outer radius",10,220,90)
+    if kind=="Low-pass": H=R<=r2
+    elif kind=="High-pass": H=R>=r1
+    elif kind=="Band-pass": H=(R>=r1)&(R<=r2)
+    else: H=np.exp(-(R**2)/(2*r2**2))
+    out=np.real(np.fft.ifft2(np.fft.ifftshift(F*H)))
+    c=st.columns(4); c[0].image(np.clip(I,0,255).astype(np.uint8),caption="Original"); c[1].image(H.astype(float),caption="Frequency mask"); c[2].image(np.log1p(np.abs(F*H)),caption="Filtered spectrum"); c[3].image(np.clip(out,0,255).astype(np.uint8),caption="Reconstruction")
+    st.info("The mask acts directly in spatial-frequency space. Low frequencies represent broad structure; high frequencies carry fine detail and edges.")
+
+elif page == "14 · 2D Reciprocal Lattice":
+    st.markdown('<div class="main-title">14 · 2D Bravais Lattice → Reciprocal Space</div>', unsafe_allow_html=True)
+    lattice=st.selectbox("Direct lattice",["Square","Rectangular","Triangular"]); a=st.slider("Lattice constant a",.5,2.,1.,.1); b=st.slider("b",.5,2.,1.3,.1); M=8
+    pts=[]
+    for i in range(-M,M+1):
+        for j in range(-M,M+1):
+            if lattice=="Square": p=(i*a,j*a)
+            elif lattice=="Rectangular": p=(i*a,j*b)
+            else: p=(i*a+j*a/2,j*np.sqrt(3)*a/2)
+            pts.append(p)
+    pts=np.array(pts); q=np.linspace(-10,10,220); QX,QY=np.meshgrid(q,q); S=np.zeros_like(QX,dtype=complex)
+    for p in pts[::max(1,len(pts)//600)]: S += np.exp(-1j*(QX*p[0]+QY*p[1]))
+    I=np.abs(S)**2; I/=I.max()
+    fig=make_subplots(rows=1,cols=2,subplot_titles=("Direct lattice","Reciprocal-space intensity"))
+    fig.add_trace(go.Scatter(x=pts[:,0],y=pts[:,1],mode="markers",name="Sites"),row=1,col=1)
+    fig.add_trace(go.Heatmap(x=q,y=q,z=np.log10(I+1e-7),colorscale="Viridis"),row=1,col=2)
+    fig.update_layout(template="plotly_white",height=560)
+    st.plotly_chart(fig,use_container_width=True)
+    st.latex(r"\\mathbf a_i\\cdot\\mathbf b_j=2\\pi\\delta_{ij}")
+    st.write("This is the computational bridge from periodic real-space structure to reciprocal lattice, diffraction and eventually Brillouin zones.")
 
 st.divider()
 st.caption("Aman Edge Physics · Fourier Transform Visualization Lab · Built with Python, NumPy, SciPy, Plotly and Streamlit")
