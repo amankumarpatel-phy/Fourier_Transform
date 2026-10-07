@@ -44,7 +44,7 @@ modules=[
 "Transform Mechanism","Transform Pairs","Magnitude & Phase","Transform Theorems",
 "Parseval & Plancherel","Convolution & Green Functions","Uncertainty & Wave Packets",
 "2D Fourier Physics","Fourier Imaging","Fourier Optics","Reciprocal Space & Diffraction",
-"Quantum & Spectral PDEs"
+"Quantum & Spectral PDEs","Discrete Fourier Transform","Short-Time Fourier Transform"
 ]
 choice=st.sidebar.radio("Research Workstation",modules)
 st.sidebar.divider()
@@ -295,6 +295,50 @@ elif choice=="Quantum & Spectral PDEs":
     with tabs[3]:
         rec=FT(u,dx);verify("Forward/inverse consistency",np.real(IFT(rec,dx)),u,1e-10)
     with tabs[4]:st.write("The central numerical insight is diagonalization: each Fourier mode evolves independently when the governing physics is translation invariant.")
+\n
+elif choice=="Discrete Fourier Transform":
+    tabs=shell("Discrete Fourier Transform (DFT)",
+    """The DFT represents a finite sampled sequence using a finite set of discrete complex exponentials:
+    \[
+    X_m=\sum_{n=0}^{N-1}x_ne^{-i2\pi mn/N}.
+    \]
+    It is the finite-dimensional Fourier basis used for numerical spectral analysis.""",
+    """For samples \(x_n\), define the basis
+    \[
+    \phi_m(n)=e^{-i2\pi mn/N}.
+    \]
+    The DFT coefficient is the inner product \(X_m=\langle x,\phi_m\rangle\). Orthogonality of the discrete basis separates the modes.""",
+    """DFT is fundamental in numerical physics, digital spectroscopy, image analysis, diffraction calculations and computational signal processing.""")
+    with tabs[2]:
+        N=st.select_slider("Number of samples",[16,32,64,128,256],64);f1=st.slider("Component f₁",1.,15.,4.,.1);f2=st.slider("Component f₂",1.,15.,11.,.1);n=np.arange(N);x=np.cos(2*np.pi*f1*n/N)+.6*np.cos(2*np.pi*f2*n/N+.5);X=np.sum(x[None,:]*np.exp(-2j*np.pi*np.outer(np.arange(N),n)/N),axis=1)
+        m=np.arange(N);c=st.columns(2);c[0].plotly_chart(fig1([(n,x,"x[n]",{})],"Finite sampled field","n","amplitude"),use_container_width=True);c[1].plotly_chart(fig1([(m,abs(X),"|X[m]|",{})],"Discrete Fourier coefficients","m","magnitude"),use_container_width=True)
+        m0=st.slider("Inspect basis index m",0,N-1,4);basis=np.exp(-2j*np.pi*m0*n/N);contrib=x*basis;cum=np.cumsum(contrib);st.plotly_chart(fig1([(n,np.real(cum),"Re partial sum",{}),(n,np.imag(cum),"Im partial sum",{})],"DFT coefficient accumulation","n","partial coefficient"),use_container_width=True);st.metric("Selected coefficient",f"{abs(X[m0]):.6f} ∠ {np.angle(X[m0]):.3f} rad")
+    with tabs[3]:
+        xr=np.real(np.sum(X[:,None]*np.exp(2j*np.pi*np.outer(np.arange(N),n)/N),axis=0)/N);verify("DFT inverse reconstruction",xr,x,1e-10)
+    with tabs[4]:st.write("Unlike the continuous transform, the DFT operates on a finite periodic sequence. Spectral bins are discrete and the sampled record implicitly represents one period of a periodic extension.")
+    with tabs[5]:st.markdown("### Research applications\n- Numerical spectral methods\n- Digital spectroscopy\n- Computational imaging\n- Diffraction calculations\n- Finite sampled experimental data")
+
+elif choice=="Short-Time Fourier Transform":
+    tabs=shell("Short-Time Fourier Transform (STFT)",
+    """The ordinary Fourier transform answers **which frequencies exist over the entire observation interval**. The STFT asks **which frequencies exist near each time** by multiplying the signal by a sliding window:
+    \[
+    X(\tau,\omega)=\int x(t)w(t-\tau)e^{-i\omega t}dt.
+    \]""",
+    """A translated window \(w(t-\tau)\) localizes the signal. Fourier transformation of each localized segment produces a time-frequency representation. Short windows improve temporal localization; long windows improve frequency resolution.""",
+    """STFT is used for transient spectroscopy, wave packets, vibration analysis, acoustics, rotating machinery, biomedical signals and time-varying physical systems.""")
+    with tabs[2]:
+        fs=st.slider("Sampling rate",100,2000,800,50);duration=st.slider("Duration",1.,8.,4.,.25);window=st.slider("Window length",64,512,192,16);hop=st.slider("Hop size",16,256,64,16);t=np.arange(0,duration,1/fs);f0=8+18*t/duration;x=np.sin(2*np.pi*f0*t)+.35*np.sin(2*np.pi*(42-20*t/duration)*t);w=signal.windows.hann(window);starts=range(0,max(1,len(x)-window+1),hop);rows=[];times=[]
+        for j in starts:
+            seg=x[j:j+window]
+            if len(seg)<window:break
+            rows.append(abs(np.fft.rfft(seg*w)));times.append((j+window/2)/fs)
+        S=np.array(rows).T;freq=np.fft.rfftfreq(window,1/fs)
+        c=st.columns(2);c[0].plotly_chart(fig1([(t,x,"x(t)",{})],"Time-varying signal","time (s)","amplitude"),use_container_width=True);c[1].plotly_chart(heat(S,"STFT spectrogram",times,freq,"Viridis",500),use_container_width=True)
+        st.metric("Time bins",S.shape[1]);st.metric("Frequency bins",S.shape[0])
+    with tabs[3]:
+        energy_time=np.sum(x*x);energy_tf=np.sum(S*S)/window;st.metric("Signal energy",f"{energy_time:.4f}");st.metric("Windowed spectral energy (relative)",f"{energy_tf:.4f}");st.write("The exact equality depends on the chosen window and normalization. The verification panel therefore checks scaling rather than claiming a universal identity.")
+    with tabs[4]:st.write("STFT introduces a time-frequency trade-off: a narrow window tracks rapid events but broadens spectral features; a wide window resolves frequencies better but blurs when they occur.")
+    with tabs[5]:st.markdown("### Research applications\n- Transient spectroscopy\n- Wave-packet dynamics\n- Acoustic and vibration physics\n- Biomedical time-frequency analysis\n- Experimental data with evolving frequencies")
 
 st.divider()
 st.caption("Aman Edge Physics · Fourier Physics Research Workstation")
