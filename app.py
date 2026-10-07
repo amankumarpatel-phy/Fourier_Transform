@@ -29,17 +29,9 @@ def heat(z,title,x=None,y=None,scale="Viridis",height=500):
     f=go.Figure(go.Heatmap(z=z,x=x,y=y,colorscale=scale));f.update_layout(template="plotly_white",title=title,height=height);return f
 def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
-    """Render academic prose with safely separated display and inline mathematics."""
-    import re
-    blocks = re.split(r"(\\\\\[.*?\\\\\])", content, flags=re.S)
-    for block in blocks:
-        if not block.strip():
-            continue
-        if block.startswith(r"\[") and block.endswith(r"\]"):
-            st.latex(block[2:-2].strip())
-        else:
-            prose = re.sub(r"\\\((.*?)\\\)", r"$\\1$", block)
-            st.markdown(prose)
+    """Render academic prose and LaTeX using Streamlit's native Markdown math renderer."""
+    rendered = content.replace(r"\[", "$$").replace(r"\]", "$$")
+    st.markdown(rendered)
 
 def shell(title,theory,derivation,application,warning=None):
     st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
