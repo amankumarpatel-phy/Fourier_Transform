@@ -26,15 +26,14 @@ def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
     """Render academic prose with properly typeset display and inline LaTeX."""
     import re
-    parts=re.split(r'\\\\\[([\\s\\S]*?)\\\\\]', content)
+    parts=re.split(r'\\\[([\\s\\S]*?)\\\]', content)
     for part in parts:
         if not part.strip():
             continue
-        if part.startswith(r'\\'):
+        if part.lstrip().startswith('\\'):
             st.latex(part.strip())
         else:
-            text=part
-            text=re.sub(r'\\\\\((.*?)\\\\\)', r'$\\1$', text)
+            text=re.sub(r'\\\((.*?)\\\)', r'$\\1$', part)
             st.markdown(text)
 
 def shell(title,theory,derivation,application,warning=None):
