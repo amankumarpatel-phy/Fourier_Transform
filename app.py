@@ -87,7 +87,7 @@ def shell(title,theory,derivation,application,warning=None):
         else:
             sigma=0.8
             psi=np.exp(-xx**2/(4*sigma**2))
-            psi/=np.sqrt(np.trapezoid(abs(psi)**2,xx))
+            psi/=np.sqrt(np.trapz(abs(psi)**2,xx))
             P=np.abs(FT(psi,dx))**2
             kk=K(n,dx)
             c=st.columns(2)
