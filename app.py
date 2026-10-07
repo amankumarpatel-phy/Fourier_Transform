@@ -10,6 +10,11 @@ st.markdown("""<style>
 .title{font-size:2.6rem;font-weight:850}.sub{font-size:1.05rem;opacity:.72}
 .card{padding:1rem;border:1px solid rgba(120,120,120,.25);border-radius:10px;margin:.5rem 0}
 .small{font-size:.88rem;opacity:.72}.eq{padding:.7rem;background:rgba(80,120,180,.08);border-radius:8px}
+.stMarkdown p{font-size:1.02rem;line-height:1.72;color:#30343b;margin:.55rem 0}
+.stMarkdown h3{font-size:1.35rem;margin-top:.35rem;margin-bottom:.65rem}
+.stMarkdown ul{line-height:1.7}
+.stTabs [data-baseweb="tab"]{font-weight:600}
+[data-testid="stCaptionContainer"]{line-height:1.5}
 </style>""",unsafe_allow_html=True)
 
 def FT(x,dx): return np.fft.fftshift(np.fft.fft(np.asarray(x)))*dx
