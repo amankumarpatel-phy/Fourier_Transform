@@ -295,7 +295,7 @@ elif choice=="Quantum & Spectral PDEs":
     with tabs[3]:
         rec=FT(u,dx);verify("Forward/inverse consistency",np.real(IFT(rec,dx)),u,1e-10)
     with tabs[4]:st.write("The central numerical insight is diagonalization: each Fourier mode evolves independently when the governing physics is translation invariant.")
-\n
+
 elif choice=="Discrete Fourier Transform":
     tabs=shell("Discrete Fourier Transform (DFT)",
     """The DFT represents a finite sampled sequence using a finite set of discrete complex exponentials:
