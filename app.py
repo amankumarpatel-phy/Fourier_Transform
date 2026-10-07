@@ -42,14 +42,89 @@ def shell(title,theory,derivation,application,warning=None):
     with tabs[1]:
         render_academic(derivation)
     with tabs[4]:
-        st.markdown("### Numerical verification protocol")
-        st.markdown(f"Every numerical result in **{title}** should be checked against an independent reconstruction, analytical identity, limiting case, or conservation relation. Module-specific verification results are shown below this framework.")
-        st.info("Verification target: agreement between the governing Fourier-space relation and the independently computed numerical result.")
+        st.markdown("### Physical interpretation")
+        st.markdown(f"**{title}** is interpreted through spectral content, phase structure, localization and the response of the Fourier basis.")
+        n=256
+        xx=np.linspace(-5,5,n,endpoint=False); dx=xx[1]-xx[0]
+        uu=np.exp(-xx**2/(2*0.65**2))
+        UU=FT(uu,dx); kk=K(n,dx)
+        c=st.columns(3)
+        c[0].plotly_chart(fig1([(xx,uu,"field",{})],"Representative physical-space field","x","amplitude",320),use_container_width=True)
+        c[1].plotly_chart(fig1([(kk,np.abs(UU),"spectrum",{})],"Reciprocal-space content","k","|X(k)|",320),use_container_width=True)
+        phase=np.unwrap(np.angle(UU))
+        c[2].plotly_chart(fig1([(kk,phase,"phase",{})],"Spectral phase","k","phase",320),use_container_width=True)
+        st.info("Interpretation: concentrated real-space structure produces broad reciprocal-space content; phase carries spatial alignment information.")
     with tabs[5]:
         render_academic(application)
-        st.markdown("---")
-        st.markdown("### Research-use perspective")
-        st.markdown(f"**{title}** is presented as a computational experiment: the Fourier representation is not only calculated, but connected to a measurable or interpretable physical quantity.")
+        st.markdown("### Visual research application")
+        app_mode=st.selectbox("Choose a physical application",["Spectroscopy","Fraunhofer diffraction","Optical imaging / MTF","Quantum position ↔ momentum"],key=f"app_mode_{title}")
+        n=320
+        xx=np.linspace(-6,6,n,endpoint=False); dx=xx[1]-xx[0]
+        if app_mode=="Spectroscopy":
+            sig=np.exp(-xx**2/(2*.45**2))+0.65*np.exp(-(xx-1.6)**2/(2*.22**2))
+            spec=np.abs(FT(sig,dx)); kk=K(n,dx)
+            f=make_subplots(rows=1,cols=2,subplot_titles=("Measured / model field","Spectral signature"))
+            f.add_trace(go.Scatter(x=xx,y=sig,name="signal"),row=1,col=1)
+            f.add_trace(go.Scatter(x=kk,y=spec,name="spectrum"),row=1,col=2)
+            f.update_layout(template="plotly_white",height=430,xaxis_title="coordinate",xaxis2_title="wave number",yaxis_title="amplitude")
+            st.plotly_chart(f,use_container_width=True)
+            st.metric("Dominant spectral component",f"{kk[np.argmax(spec)]:.3f}")
+        elif app_mode=="Fraunhofer diffraction":
+            X,Y=np.meshgrid(xx,xx); aperture=(X**2+Y**2<1.0**2).astype(float)
+            F=np.fft.fftshift(np.fft.fft2(aperture)); I=np.abs(F)**2; I/=I.max()
+            c=st.columns(2)
+            c[0].plotly_chart(heat(aperture,"Circular aperture",xx,xx,"Gray",390),use_container_width=True)
+            c[1].plotly_chart(heat(np.log1p(80*I),"Far-field diffraction intensity",xx,xx,"Magma",390),use_container_width=True)
+            st.metric("Central intensity",f"{I[n//2,n//2]:.6f}")
+        elif app_mode=="Optical imaging / MTF":
+            r=np.linspace(0,1,300)
+            mtf=np.exp(-3.2*r**2)
+            c=st.columns(2)
+            c[0].plotly_chart(fig1([(r,mtf,"MTF",{})],"Contrast transfer","normalized spatial frequency","MTF",390),use_container_width=True)
+            c[1].plotly_chart(fig1([(r,20*np.log10(np.maximum(mtf,1e-8)),"MTF (dB)",{})],"Resolution bandwidth","normalized spatial frequency","dB",390),use_container_width=True)
+            cutoff=r[np.argmin(np.abs(mtf-.1))]
+            st.metric("10% MTF frequency",f"{cutoff:.3f} × normalized cutoff")
+        else:
+            sigma=0.8
+            psi=np.exp(-xx**2/(4*sigma**2))
+            psi/=np.sqrt(np.trapezoid(abs(psi)**2,xx))
+            P=np.abs(FT(psi,dx))**2
+            kk=K(n,dx)
+            c=st.columns(2)
+            c[0].plotly_chart(fig1([(xx,np.abs(psi)**2,"|ψ(x)|²",{})],"Position probability density","x","probability density",390),use_container_width=True)
+            c[1].plotly_chart(fig1([(kk,P/P.max(),"|ψ̃(k)|²",{})],"Momentum-space spectrum","k","normalized probability",390),use_container_width=True)
+            st.metric("Position-space width σ",f"{sigma:.3f}")
+    with tabs[3]:
+        st.markdown("### Numerical verification laboratory")
+        n0=st.select_slider("Base sample count",[64,128,256,512,1024],256,key=f"nv_n_{title}")
+        sigma=st.slider("Test-field width",0.25,1.5,0.65,0.05,key=f"nv_sigma_{title}")
+        orders=[64,128,256,512,1024]
+        errors=[];energies=[];bandwidths=[]
+        for nn in orders:
+            q=np.linspace(-5,5,nn,endpoint=False); dd=q[1]-q[0]
+            u=np.exp(-q*q/(2*sigma*sigma)); U=FT(u,dd); rec=np.real(IFT(U,dd))
+            err=np.linalg.norm(u-rec)/(np.linalg.norm(u)+1e-15)
+            energy_x=np.sum(np.abs(u)**2)*dd
+            energy_k=np.sum(np.abs(U)**2)*(K(nn,dd)[1]-K(nn,dd)[0])/(2*np.pi)
+            p=np.abs(U); threshold=.01*p.max()
+            active=np.abs(K(nn,dd))[p>threshold]
+            bw=(active.max()-active.min()) if active.size else 0
+            errors.append(err);energies.append(energy_k/energy_x);bandwidths.append(bw)
+        c=st.columns(3)
+        c[0].metric("Reconstruction error",f"{errors[orders.index(n0)]:.3e}")
+        c[1].metric("Parseval energy ratio",f"{energies[orders.index(n0)]:.8f}")
+        c[2].metric("1% spectral bandwidth",f"{bandwidths[orders.index(n0)]:.4f}")
+        f=make_subplots(rows=1,cols=3,subplot_titles=("Convergence","Energy consistency","Spectral bandwidth"))
+        f.add_trace(go.Scatter(x=orders,y=errors,mode="lines+markers",name="error"),row=1,col=1)
+        f.add_trace(go.Scatter(x=orders,y=energies,mode="lines+markers",name="energy ratio"),row=1,col=2)
+        f.add_trace(go.Scatter(x=orders,y=bandwidths,mode="lines+markers",name="bandwidth"),row=1,col=3)
+        f.update_xaxes(type="log",row=1,col=1); f.update_yaxes(type="log",row=1,col=1)
+        f.update_layout(template="plotly_white",height=470,showlegend=False)
+        st.plotly_chart(f,use_container_width=True)
+        st.markdown("#### Independent reconstruction at the selected resolution")
+        q=np.linspace(-5,5,n0,endpoint=False); dd=q[1]-q[0]; u=np.exp(-q*q/(2*sigma*sigma)); U=FT(u,dd); rec=np.real(IFT(U,dd))
+        st.plotly_chart(fig1([(q,u,"original",{}),(q,rec,"inverse transform",{"line":dict(dash="dash")})],"Forward → inverse reconstruction","x","field"),use_container_width=True)
+        st.caption("A trustworthy numerical transform should converge with increasing resolution, conserve the appropriate quadratic norm, and reproduce the original field under inverse transformation.")
     return tabs
 
 def verify(name,a,b,tol=1e-5):
