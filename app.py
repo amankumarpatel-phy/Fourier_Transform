@@ -49,7 +49,7 @@ modules=[
 choice=st.sidebar.radio("Research Workstation",modules)
 st.sidebar.divider()
 st.sidebar.latex(r"X(k)=\int x(r)e^{-ikr}\,dr")
-st.sidebar.caption("Research Mode • Continuous Fourier viewpoint • no DFT/STFT modules")
+st.sidebar.caption("Research Mode • Continuous Fourier viewpoint • research-focused transform physics")
 st.sidebar.divider()
 st.sidebar.markdown("**Workflow**")
 st.sidebar.caption("Theory → Derivation → Experiment → Verification → Interpretation → Application")
