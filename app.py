@@ -15,7 +15,58 @@ st.markdown("""<style>
 .stMarkdown p{font-size:1.02rem;line-height:1.72;color:#30343b;margin:.55rem 0}
 .stMarkdown h3{font-size:1.35rem;margin-top:.35rem;margin-bottom:.65rem}
 .stMarkdown ul{line-height:1.7}
-.stTabs [data-baseweb="tab"]{font-weight:600}
+.stTabs [data-baseweb="tab-list"]{
+    display:grid !important;
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:10px;
+    padding:8px;
+    margin:18px 0 24px 0;
+    background:rgba(120,130,150,.08);
+    border:1px solid rgba(90,100,120,.14);
+    border-radius:14px;
+    box-shadow:0 3px 14px rgba(20,30,50,.06);
+}
+.stTabs [data-baseweb="tab"]{
+    height:58px !important;
+    min-width:0 !important;
+    justify-content:center;
+    border:1px solid transparent !important;
+    border-radius:10px 10px 8px 8px !important;
+    padding:8px 10px !important;
+    font-weight:650 !important;
+    font-size:.88rem !important;
+    line-height:1.15 !important;
+    color:#4b5563 !important;
+    background:transparent !important;
+    transition:all .18s ease;
+}
+.stTabs [data-baseweb="tab"]:hover{
+    background:rgba(255,255,255,.8) !important;
+    border-color:rgba(90,100,120,.16) !important;
+    transform:translateY(-1px);
+}
+.stTabs [data-baseweb="tab"][aria-selected="true"]{
+    color:#111827 !important;
+    background:#ffffff !important;
+    border:1px solid rgba(255,90,90,.38) !important;
+    box-shadow:0 4px 12px rgba(30,40,60,.10);
+}
+.stTabs [data-baseweb="tab-highlight"]{
+    height:3px !important;
+    border-radius:3px !important;
+    background:#ff4b4b !important;
+}
+.stTabs [data-baseweb="tab-border"]{display:none !important;}
+.stTabs [data-baseweb="tab-panel"]{
+    padding-top:4px !important;
+}
+@media (max-width:1100px){
+    .stTabs [data-baseweb="tab-list"]{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+@media (max-width:650px){
+    .stTabs [data-baseweb="tab-list"]{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .stTabs [data-baseweb="tab"]{font-size:.8rem !important;height:52px !important;}
+}
 [data-testid="stCaptionContainer"]{line-height:1.5}
 </style>""",unsafe_allow_html=True)
 
