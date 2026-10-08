@@ -300,10 +300,10 @@ def communication_page():
                     ("Upper sideband",f"{fc+fm:.0f} Hz"),("Lower sideband",f"{fc-fm:.0f} Hz")])
         explain("The message frequency does not disappear. Modulation translates its spectral content to frequencies around the carrier. This is the central Fourier-space idea behind radio communication.")
         math_items=[
-            ("AM signal",r"x(t)=[1+mu m(t)]cos(2pi f_ct)","Information is placed on a high-frequency carrier."),
-            ("Cosine spectrum",r"mathcal F{cos(2pi f_ct)}=rac12[delta(f-f_c)+delta(f+f_c)]","A sinusoidal carrier is localized at ±f꜀."),
-            ("Frequency translation",r"mathcal F{m(t)cos(2pi f_ct)}=rac12[M(f-f_c)+M(f+f_c)]","Multiplication in time creates shifted copies in frequency."),
-            ("AM bandwidth",r"B_{mathrm{AM}}=2f_{m,max}","Both sidebands occupy the message bandwidth around the carrier.")
+            ("AM signal",r"x(t)=[1+\mu m(t)]\cos(2\pi f_ct)","Information is placed on a high-frequency carrier."),
+            ("Cosine spectrum",r"\mathcal F\{\cos(2\pi f_ct)\}=\frac12[\delta(f-f_c)+\delta(f+f_c)]","A sinusoidal carrier is localized at ±f꜀."),
+            ("Frequency translation",r"\mathcal F\{m(t)\cos(2\pi f_ct)\}=\frac12[M(f-f_c)+M(f+f_c)]","Multiplication in time creates shifted copies in frequency."),
+            ("AM bandwidth",r"B_{\mathrm{AM}}=2f_{m,\max}","Both sidebands occupy the message bandwidth around the carrier.")
         ]
     else:
         N=st.slider("Number of subcarriers N",4,64,16,4)
@@ -328,11 +328,10 @@ def communication_page():
                     ("Symbol interval",f"{1/df*1000:.2f} ms"),("Occupied span",f"{N*df/1000:.2f} kHz")])
         explain("OFDM chooses subcarrier spacing so neighboring complex exponentials are orthogonal over one symbol interval. Their spectra may overlap while remaining mathematically separable.")
         math_items=[
-            ("OFDM signal",r"x(t)=sum_{k=0}^{N-1}X_k e^{i2pi kDelta f t}","Each subcarrier carries an independent complex coefficient."),
-            ("Orthogonality",r"int_0^T e^{i2pi(k-l)Delta f t},dt=0,quad k
-e l","The subcarriers do not interfere under ideal synchronization."),
-            ("Spacing",r"Delta f=rac1T","The spacing is tied to the useful symbol duration."),
-            ("Bandwidth",r"Bapprox NDelta f","Increasing subcarrier count or spacing expands occupied spectrum.")
+            ("OFDM signal",r"x(t)=\sum_{k=0}^{N-1}X_k e^{i2\pi k\Delta f t}","Each subcarrier carries an independent complex coefficient."),
+            ("Orthogonality",r"\int_0^T e^{i2\pi(k-l)\Delta f t}\,dt=0,\quad k\ne l","The subcarriers do not interfere under ideal synchronization."),
+            ("Spacing",r"\Delta f=\frac1T","The spacing is tied to the useful symbol duration."),
+            ("Bandwidth",r"B\approx N\Delta f","Increasing subcarrier count or spacing expands occupied spectrum.")
         ]
     math_section(math_items)
 
