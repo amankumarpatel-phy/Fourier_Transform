@@ -82,30 +82,62 @@ def heat(z,title,x=None,y=None,scale="Viridis",height=500):
     f=go.Figure(go.Heatmap(z=z,x=x,y=y,colorscale=scale));f.update_layout(template="plotly_white",title=title,height=height);return f
 def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
-    """Render academic prose with reliable native Streamlit math rendering."""
-    import re
+    """Render academic prose and display mathematics safely."""
+    lines = content.splitlines()
+    prose = []
+    math_lines = []
+    in_math = False
 
-    # Accept both LaTeX display forms: \\[ ... \\] and $$ ... $$.
-    pattern = re.compile(r"(\\\\\[[\\s\\S]*?\\\\\]|\\$\\$[\\s\\S]*?\\$\\$)")
-    parts = pattern.split(content)
+    def flush_prose():
+        if prose:
+            block = "\n".join(prose).strip()
+            if block:
+                block = block.replace(r"\\(", "$").replace(r"\\)", "$")
+                st.markdown(block)
+            prose.clear()
 
-    for part in parts:
-        if not part or not part.strip():
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped == r"\[":
+            flush_prose()
+            in_math = True
+            math_lines.clear()
             continue
 
-        stripped = part.strip()
-
-        if stripped.startswith(r"\\[") and stripped.endswith(r"\\]"):
-            st.latex(stripped[2:-2].strip())
+        if stripped == r"\]" and in_math:
+            equation = "\n".join(math_lines).strip()
+            if equation:
+                st.latex(equation)
+            math_lines.clear()
+            in_math = False
             continue
 
-        if stripped.startswith("$$") and stripped.endswith("$$"):
-            st.latex(stripped[2:-2].strip())
+        if stripped == "$$" and not in_math:
+            flush_prose()
+            in_math = True
+            math_lines.clear()
             continue
 
-        # Inline math is converted to Streamlit's Markdown math syntax.
-        prose = part.replace(r"\\(", "$").replace(r"\\)", "$")
-        st.markdown(prose)
+        if stripped == "$$" and in_math:
+            equation = "\n".join(math_lines).strip()
+            if equation:
+                st.latex(equation)
+            math_lines.clear()
+            in_math = False
+            continue
+
+        if in_math:
+            math_lines.append(line)
+        else:
+            prose.append(line)
+
+    if in_math:
+        equation = "\n".join(math_lines).strip()
+        if equation:
+            st.latex(equation)
+
+    flush_prose()
 
 def shell(title,theory,derivation,application,warning=None):
     st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
