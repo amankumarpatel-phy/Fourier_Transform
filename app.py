@@ -82,9 +82,33 @@ def heat(z,title,x=None,y=None,scale="Viridis",height=500):
     f=go.Figure(go.Heatmap(z=z,x=x,y=y,colorscale=scale));f.update_layout(template="plotly_white",title=title,height=height);return f
 def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
-    """Render academic prose and LaTeX using Streamlit's native Markdown math renderer."""
-    rendered = content.replace(r"\[", "$$").replace(r"\]", "$$")
-    st.markdown(rendered)
+    """Render mixed academic prose and mathematics without exposing LaTeX delimiters."""
+    import re
+    # Normalize display-math delimiters to \[ ... \].
+    text = content.replace("$", "\\[", 1) if "$" in content else content
+    if "$" in text:
+        parts = text.split("$")
+        rebuilt = []
+        for i, part in enumerate(parts):
+            rebuilt.append(part if i % 2 == 0 else "\\[" + part + "\\]")
+        text = "".join(rebuilt)
+
+    # Render display equations separately so Streamlit never prints delimiters literally.
+    pattern = re.compile(r"\\\\\\[\\s\\S]*?\\\\\\]")
+    pos = 0
+    for match in pattern.finditer(text):
+        prose = text[pos:match.start()]
+        if prose.strip():
+            # Inline LaTeX: \\( ... \\) -> $ ... $.
+            prose = prose.replace(r"\\(", "$").replace(r"\\)", "$")
+            st.markdown(prose)
+        equation = match.group(0)[2:-2].strip()
+        st.latex(equation)
+        pos = match.end()
+    tail = text[pos:]
+    if tail.strip():
+        tail = tail.replace(r"\\(", "$").replace(r"\\)", "$")
+        st.markdown(tail)
 
 def shell(title,theory,derivation,application,warning=None):
     st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
