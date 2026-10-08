@@ -82,33 +82,19 @@ def heat(z,title,x=None,y=None,scale="Viridis",height=500):
     f=go.Figure(go.Heatmap(z=z,x=x,y=y,colorscale=scale));f.update_layout(template="plotly_white",title=title,height=height);return f
 def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
-    """Render mixed academic prose and mathematics without exposing LaTeX delimiters."""
+    """Render prose and display mathematics as separate Streamlit elements."""
     import re
-    # Normalize display-math delimiters to \[ ... \].
-    text = content.replace("$", "\\[", 1) if "$" in content else content
-    if "$" in text:
-        parts = text.split("$")
-        rebuilt = []
-        for i, part in enumerate(parts):
-            rebuilt.append(part if i % 2 == 0 else "\\[" + part + "\\]")
-        text = "".join(rebuilt)
-
-    # Render display equations separately so Streamlit never prints delimiters literally.
-    pattern = re.compile(r"\\\\\\[\\s\\S]*?\\\\\\]")
-    pos = 0
-    for match in pattern.finditer(text):
-        prose = text[pos:match.start()]
-        if prose.strip():
-            # Inline LaTeX: \\( ... \\) -> $ ... $.
-            prose = prose.replace(r"\\(", "$").replace(r"\\)", "$")
-            st.markdown(prose)
-        equation = match.group(0)[2:-2].strip()
-        st.latex(equation)
-        pos = match.end()
-    tail = text[pos:]
-    if tail.strip():
-        tail = tail.replace(r"\\(", "$").replace(r"\\)", "$")
-        st.markdown(tail)
+    chunks = re.split(r'(\\$\\$[\\s\\S]*?\\$\\$|\\\\\\[[\\s\\S]*?\\\\\\])', content)
+    for chunk in chunks:
+        if not chunk or not chunk.strip():
+            continue
+        if (chunk.startswith("$$") and chunk.endswith("$$")):
+            st.latex(chunk[2:-2].strip())
+        elif (chunk.startswith(r"\\[") and chunk.endswith(r"\\]")):
+            st.latex(chunk[2:-2].strip())
+        else:
+            chunk = chunk.replace(r"\\(", "$").replace(r"\\)", "$")
+            st.markdown(chunk)
 
 def shell(title,theory,derivation,application,warning=None):
     st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
