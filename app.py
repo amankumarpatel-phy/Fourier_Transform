@@ -164,10 +164,14 @@ def audio_wav(uploaded):
         data=data.reshape(-1,ch).mean(axis=1)
     return data/(32768.0 if sw==2 else np.max(np.abs(data))+1e-12),fs
 
-def page_header(title,subtitle):
-    st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
-    st.markdown(f'<div class="sub">{subtitle}</div>',unsafe_allow_html=True)
-    st.divider()
+def page_header(title,subtitle,stage="INPUT → FOURIER → VISUALIZE → ANALYZE → MATHEMATICS"):
+    st.markdown(
+        f'<div class="hero"><div class="kicker">FOURIER APPLICATION LABORATORY</div>'
+        f'<div class="title">{title}</div><div class="sub">{subtitle}</div>'
+        f'<div class="labflow">'
+        f'<span>01 · INPUT</span><b>→</b><span>02 · FOURIER SPACE</span><b>→</b>'
+        f'<span>03 · VISUALIZE</span><b>→</b><span>04 · NUMERICAL ANALYSIS</span><b>→</b>'
+        f'<span>05 · MATHEMATICS</span></div></div>',unsafe_allow_html=True)
 
 def voice_page():
     page_header("Our Voice","Uploaded audio → waveform → Fourier spectrum → spectrogram → harmonics → complete mathematics")
