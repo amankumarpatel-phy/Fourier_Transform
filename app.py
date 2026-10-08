@@ -134,304 +134,304 @@ def verify(name,a,b,tol=1e-5):
     return err
 
 modules=[
-"Transform Mechanism","Transform Pairs","Magnitude & Phase","Transform Theorems",
-"Parseval & Plancherel","Convolution & Green Functions","Uncertainty & Wave Packets",
-"2D Fourier Physics","Fourier Imaging","Fourier Optics","Reciprocal Space & Diffraction",
-"Quantum & Spectral PDEs","Discrete Fourier Transform","Short-Time Fourier Transform"
+"Our Voice","Noise Cancellation","Mobile Phone & Wi-Fi","Images",
+"Medical Imaging — MRI","Reciprocal Lattice, Diffraction & Crystal Structure Analysis"
 ]
-choice=st.sidebar.radio("Research Workstation",modules)
+choice=st.sidebar.radio("Fourier Applications",modules)
 st.sidebar.divider()
 st.sidebar.latex(r"X(k)=\int x(r)e^{-ikr}\,dr")
-st.sidebar.caption("Research Mode • Continuous Fourier viewpoint • research-focused transform physics")
+st.sidebar.caption("Fourier Physics • Real-world applications • Computational laboratory")
 st.sidebar.divider()
-st.sidebar.markdown("**Workflow**")
-st.sidebar.caption("Theory → Derivation → Experiment → Verification → Interpretation → Application")
+st.sidebar.markdown("**Applications**")
+st.sidebar.caption("Voice → Noise → Communication → Images → MRI → Crystals")
 
-if choice=="Transform Mechanism":
-    tabs=shell("Fourier Transform Mechanism",
-    """### The transform is a projection
-    A Fourier coefficient is the inner product of a field with a complex plane-wave basis.
+if choice=="Our Voice":
+    tabs=shell("Fourier Transform of Our Voice",
+    """### Why does your voice have a spectrum?
+    Human speech is a time-varying acoustic pressure wave. The Fourier transform decomposes it into frequency components, revealing the fundamental frequency, harmonics and formants.
     \[
-    X(k)=\langle x,e^{ikr}\rangle=\int x(r)e^{-ikr}dr
+    X(f)=\int x(t)e^{-i2\pi ft}\,dt
     \]
-    The key physical question is: **how much of wave-number (k) exists in the field?**""",
-    """### Derivation from the complex basis
+    For speech, the spectrum changes with time, so a short-time Fourier representation is especially useful.""",
+    """### From vocal vibration to spectrum
+    Vocal-fold vibration produces a quasi-periodic excitation. The vocal tract acts approximately as a frequency-selective filter:
     \[
-    e^{-ikr}=\cos(kr)-i\sin(kr)
+    \text{speech}(t)=\text{excitation}(t)*h_{\rm vocal\ tract}(t).
     \]
-    Hence
+    Therefore,
     \[
-    X(k)=\int x(r)\cos(kr)dr-i\int x(r)\sin(kr)dr.
+    X(f)=E(f)H(f).
     \]
-    The real and imaginary parts are orthogonal projections. Coherent addition occurs when the probe oscillation matches the field.""",
-    """### Research application
-    This projection viewpoint is the common mathematical mechanism behind spectroscopy, diffraction, reciprocal lattices, quantum momentum, optical imaging and spectral PDE methods.""")
+    Fourier analysis separates excitation frequency from resonant formant structure.""",
+    """Voice Fourier analysis is used in speech recognition, speaker analysis, acoustic measurement, hearing science and communication systems.""")
     with tabs[2]:
-        f0=st.slider("Probe wave number",0.,50.,17.,.25);N=1600;t=np.linspace(-.5,.5,N,endpoint=False);dx=t[1]-t[0]
-        x=np.cos(2*np.pi*17*t)+.55*np.cos(2*np.pi*31*t+.4);b=np.exp(-1j*2*np.pi*f0*t);z=x*b;c=np.cumsum(z)*dx
-        f=make_subplots(rows=2,cols=2,subplot_titles=("Field + probe","Real integrand","Accumulation","Complex plane"))
-        f.add_trace(go.Scatter(x=t,y=x,name="x"),row=1,col=1);f.add_trace(go.Scatter(x=t,y=np.real(b),name="Re probe"),row=1,col=1);f.add_trace(go.Scatter(x=t,y=np.real(z),name="Re[x probe]"),row=1,col=2);f.add_trace(go.Scatter(x=t,y=np.real(c),name="Re X partial"),row=2,col=1);f.add_trace(go.Scatter(x=t,y=np.imag(c),name="Im X partial"),row=2,col=1);f.add_trace(go.Scatter(x=np.real(c),y=np.imag(c),name="trajectory"),row=2,col=2);f.update_layout(template="plotly_white",height=760);st.plotly_chart(f,use_container_width=True);st.metric("Coefficient",f"{abs(c[-1]):.6f} ∠ {np.angle(c[-1]):.3f} rad")
+        f0=st.slider("Fundamental frequency (Hz)",80,300,140,1)
+        vowel=st.selectbox("Vowel-like timbre",["A","E","I","O","U"])
+        duration=st.slider("Signal duration (s)",1.0,4.0,2.0,.1)
+        fs=8000;t=np.arange(0,duration,1/fs)
+        formants={"A":[800,1200,2500],"E":[500,1900,2500],"I":[300,2200,3000],"O":[500,900,2500],"U":[350,700,2500]}[vowel]
+        env=np.minimum(1,np.minimum(t*25,(duration-t)*25))
+        voice=sum((1/(h))*np.sin(2*np.pi*f0*h*t) for h in range(1,25))
+        filt=sum(np.exp(-((h*f0-fm)/90)**2)*np.sin(2*np.pi*h*f0*t) for h in range(1,25) for fm in formants)
+        x=env*(.65*voice+.35*filt);x/=np.max(np.abs(x))+1e-12
+        X=FT(x,1/fs);freq=K(len(x),1/fs)
+        pos=freq>=0
+        c=st.columns(2)
+        c[0].plotly_chart(fig1([(t[:min(len(t),1600)],x[:min(len(t),1600)],"voice",{})],"Acoustic waveform","time (s)","pressure",420),use_container_width=True)
+        c[1].plotly_chart(fig1([(freq[pos],np.abs(X[pos]),"spectrum",{})],"Voice spectrum","frequency (Hz)","magnitude",420),use_container_width=True)
+        st.audio((x*32767).astype(np.int16).tobytes(),format="audio/wav")
+        st.metric("Fundamental",f"{f0} Hz");st.metric("Highest modeled formant",f"{max(formants)} Hz")
     with tabs[3]:
-        dense=np.linspace(0,50,1001);s=np.array([abs(np.sum(x*np.exp(-1j*2*np.pi*q*t))*dx) for q in dense]);k0=dense[np.argmax(s)];st.plotly_chart(fig1([(dense,s,"|X(k)|",{})],"Continuous-frequency scan","k","magnitude"),use_container_width=True);st.metric("Detected dominant k",f"{k0:.3f}")
-    with tabs[4]: st.write("A spectral peak is constructive interference in the complex projection integral. Away from the matching wave number, the rotating phasors cancel.")
+        st.markdown("### Spectral verification")
+        X=FT(x,1/fs);xr=np.real(IFT(X,1/fs))
+        verify("Voice reconstruction",xr,x,1e-8)
+        err=np.abs(X-np.fft.fftshift(np.fft.fft(x))/fs)
+        st.metric("Independent spectrum agreement",f"{np.max(err):.3e}")
+        st.plotly_chart(fig1([(t[:1600],x[:1600],"original",{}),(t[:1600],xr[:1600],"reconstructed",{"line":dict(dash="dash")})],"Forward → inverse voice reconstruction","time (s)","amplitude"),use_container_width=True)
+    with tabs[4]:
+        st.markdown("### What the spectrum tells us")
+        st.info("The harmonic spacing reveals the fundamental pitch, while groups of enhanced harmonics reveal vocal-tract resonances (formants). A voice is therefore a physical example of a time-domain waveform carrying structured frequency information.")
+    with tabs[5]:
+        st.markdown("### Research application: speech spectroscopy")
+        st.plotly_chart(fig1([(freq[pos],20*np.log10(np.maximum(np.abs(X[pos])/np.max(np.abs(X[pos])),1e-5)),"voice spectrum",{})],"Voice spectral envelope","frequency (Hz)","relative level (dB)",430),use_container_width=True)
+        st.markdown("The same analysis pipeline underlies acoustic characterization and speech-recognition front ends.")
 
-elif choice=="Transform Pairs":
-    tabs=shell("Continuous Fourier Transform Pairs",
-    """### Duality between localization and spectral structure
-    Gaussian, rectangular, exponential, sinc and sinusoidal functions form a useful physical dictionary. Sharp boundaries generate long spectral tails; smooth localized fields generate smoother spectra.""",
-    """### Representative pair
-    For a Gaussian,
+elif choice=="Noise Cancellation":
+    tabs=shell("Fourier Transform for Noise Cancellation",
+    """### Noise cancellation is spectral separation
+    A recorded signal can be represented as
     \[
-    x(r)=e^{-r^2/(2\sigma^2)}
-    \quad\Longrightarrow\quad
-    X(k)\propto e^{-\sigma^2k^2/2}.
+    y(t)=s(t)+n(t).
     \]
-    The width product is reciprocal: narrowing the field broadens its spectrum.""",
-    """### Research application
-    Transform pairs are used as analytical test cases for optics, spectroscopy, signal reconstruction, diffraction and numerical Fourier algorithms.""")
+    Fourier transformation converts addition in time into addition in frequency:
+    \[
+    Y(f)=S(f)+N(f).
+    \]
+    Filtering can suppress frequency regions dominated by noise.""",
+    """### Spectral filtering
+    A linear frequency-domain filter obeys
+    \[
+    \tilde S(f)=H(f)Y(f).
+    \]
+    An idealized low-pass, band-pass or notch response selectively attenuates unwanted spectral components. Real systems must balance noise suppression against distortion.""",
+    """Fourier-domain noise reduction is used in microphones, headphones, industrial sensing, seismic measurements, astronomy and biomedical instrumentation.""")
     with tabs[2]:
-        pair=st.selectbox("Field",["Gaussian","Rectangular aperture","Exponential","Sinc","Two separated Gaussians"])
-        x=np.linspace(-12,12,8192,endpoint=False);dx=x[1]-x[0];k=K(len(x),dx)
-        if pair=="Gaussian": s=st.slider("σ",.1,2.,.55,.02);u=gaussian(x,s)
-        elif pair=="Rectangular aperture": w=st.slider("width",.2,8.,2.,.1);u=(abs(x)<w/2).astype(float)
-        elif pair=="Exponential": a=st.slider("α",.1,3.,1.,.05);u=np.exp(-a*abs(x))
-        elif pair=="Sinc": a=st.slider("scale",.2,3.,1.,.05);u=np.sinc(a*x)
-        else:sep=st.slider("separation",.2,5.,2.,.1);u=gaussian(x-sep/2,.3)+gaussian(x+sep/2,.3)
-        U=FT(u,dx);c=st.columns(2);c[0].plotly_chart(fig1([(x,u,"x(r)",{})],"Real space","r","field"),use_container_width=True);c[1].plotly_chart(fig1([(k,abs(U),"|X(k)|",{})],"Fourier space","k","magnitude"),use_container_width=True)
+        fs=4000;duration=2.;t=np.arange(0,duration,1/fs)
+        signal_freq=st.slider("Signal frequency (Hz)",100,800,350,10)
+        noise_strength=st.slider("Noise strength",0.,1.5,.65,.05)
+        noise_freq=st.slider("Interference frequency (Hz)",50,1800,1100,10)
+        s0=np.sin(2*np.pi*signal_freq*t)+.45*np.sin(2*np.pi*2*signal_freq*t)
+        n0=noise_strength*np.sin(2*np.pi*noise_freq*t)+.25*noise_strength*np.random.default_rng(4).normal(size=len(t))
+        y=s0+n0;Y=FT(y,1/fs);f=K(len(y),1/fs);cut=st.slider("Low-pass cutoff (Hz)",100,1800,700,10);H=(np.abs(f)<cut).astype(float);clean=np.real(IFT(Y*H,1/fs))
+        c=st.columns(2)
+        c[0].plotly_chart(fig1([(t[:2000],y[:2000],"noisy",{}),(t[:2000],clean[:2000],"filtered",{})],"Noisy → filtered waveform","time (s)","amplitude",420),use_container_width=True)
+        pos=f>=0;c[1].plotly_chart(fig1([(f[pos],np.abs(Y[pos]),"noisy spectrum",{}),(f[pos],np.abs(Y[pos]*H[pos]),"filtered spectrum",{})],"Frequency-domain filtering","Hz","magnitude",420),use_container_width=True)
+        st.metric("Cutoff",f"{cut} Hz");st.metric("Noise RMS before",f"{np.std(y-s0):.4f}");st.metric("Residual RMS after",f"{np.std(clean-s0):.4f}")
     with tabs[3]:
-        rec=np.real(IFT(U,dx));verify("Inverse-transform reconstruction",u,rec,2e-4);st.plotly_chart(fig1([(x,u,"original",{}),(x,rec,"reconstructed",{"line":dict(dash="dash")})],"Reconstruction verification","r","field"),use_container_width=True)
-    with tabs[4]:st.write("The transform pair is a physical dictionary: spatial localization, periodicity and discontinuity have characteristic reciprocal-space signatures.")
+        snr_before=10*np.log10(np.mean(s0**2)/np.mean((y-s0)**2))
+        snr_after=10*np.log10(np.mean(s0**2)/np.mean((clean-s0)**2))
+        c=st.columns(3);c[0].metric("SNR before",f"{snr_before:.2f} dB");c[1].metric("SNR after",f"{snr_after:.2f} dB");c[2].metric("Improvement",f"{snr_after-snr_before:.2f} dB")
+        verify("Filter reconstruction consistency",np.real(IFT(FT(clean,1/fs),1/fs)),clean,1e-8)
+        st.plotly_chart(fig1([(t[:2000],s0[:2000],"clean reference",{}),(t[:2000],clean[:2000],"estimated",{"line":dict(dash="dash")})],"Cancellation quality","time (s)","amplitude"),use_container_width=True)
+    with tabs[4]:
+        st.write("The filter succeeds when the useful signal and unwanted interference occupy sufficiently different spectral regions. If they overlap, aggressive filtering also removes information.")
+    with tabs[5]:
+        st.markdown("### Research application: adaptive spectral suppression")
+        st.plotly_chart(fig1([(f[pos],20*np.log10(np.maximum(np.abs(Y[pos])/np.max(np.abs(Y[pos])),1e-6)),"input",{}),(f[pos],20*np.log10(np.maximum(np.abs(Y[pos]*H[pos])/np.max(np.abs(Y[pos])),1e-6)),"filtered",{})],"Noise suppression in spectral dB","frequency (Hz)","relative dB",430),use_container_width=True)
 
-elif choice=="Magnitude & Phase":
-    tabs=shell("Complex Fourier Space: Magnitude, Phase and Information",
-    """A Fourier coefficient is complex:
+elif choice=="Mobile Phone & Wi-Fi":
+    tabs=shell("Fourier Transform in Mobile Communication & Wi-Fi",
+    """### Communication is frequency engineering
+    Information is carried by electromagnetic fields whose spectra occupy finite bandwidths. Fourier analysis reveals carriers, sidebands, channel spacing and occupied bandwidth.
     \[
-    X(k)=|X(k)|e^{i\phi(k)}.
-    \]
-    Magnitude measures spectral strength. Phase determines relative spatial alignment.""",
-    """Translation gives
+    X(f)=\mathcal F\{x(t)\}.
+    \]""",
+    """### Modulation and spectral occupancy
+    For amplitude modulation,
     \[
-    x(r-r_0)\leftrightarrow X(k)e^{-ikr_0}.
+    x(t)=m(t)\cos(2\pi f_ct)
     \]
-    Therefore a displacement leaves magnitude unchanged while imprinting a deterministic phase ramp.""",
-    """Phase is fundamental in coherent imaging, diffraction, crystallography, interferometry and inverse problems.""")
+    produces shifted copies of the message spectrum around \(\\pm f_c\).
+    Modern OFDM systems instead place information on many closely spaced orthogonal subcarriers.""",
+    """Fourier analysis is fundamental to RF spectrum monitoring, cellular communication, Wi-Fi channel planning, OFDM, filtering and interference analysis.""")
     with tabs[2]:
-        x=np.linspace(-5,5,8192,endpoint=False);dx=x[1]-x[0];k=K(len(x),dx);r0=st.slider("Translation r₀",-1.5,1.5,.35,.01);f0=st.slider("Carrier",.5,5.,2.,.1);u=gaussian(x-r0,.5)*np.cos(2*np.pi*f0*(x-r0));U=FT(u,dx)
-        st.plotly_chart(fig1([(k,abs(U),"magnitude",{})],"Magnitude","k","|X|"),use_container_width=True);st.plotly_chart(fig1([(k,np.unwrap(np.angle(U)),"phase",{})],"Phase","k","phase"),use_container_width=True)
-        mode=st.radio("Reconstruct with",["Magnitude + phase","Magnitude only","Phase only"],horizontal=True);Y=U if mode=="Magnitude + phase" else (abs(U) if mode=="Magnitude only" else np.exp(1j*np.angle(U)));rec=np.real(IFT(Y,dx));st.plotly_chart(fig1([(x,u,"original",{}),(x,rec,"reconstruction",{})],"What information survives?","r","field"),use_container_width=True)
+        fc=st.slider("Carrier frequency (normalized MHz)",1.,100.,20.,1.)
+        bw=st.slider("Message bandwidth (MHz)",1.,15.,5.,.5)
+        ncar=st.slider("OFDM subcarriers",4,64,16,4)
+        df=bw/ncar
+        freqs=fc+(np.arange(ncar)-(ncar-1)/2)*df
+        amps=np.ones(ncar);amps[::5]*=.55
+        f=np.linspace(fc-bw*1.4,fc+bw*1.4,2400)
+        spec=np.zeros_like(f)
+        for q,a0 in zip(freqs,amps):spec+=a0*np.exp(-((f-q)/(df*.18))**2)
+        c=st.columns(2)
+        c[0].plotly_chart(fig1([(f,spec,"OFDM spectrum",{})],"Subcarrier spectrum","frequency (MHz)","relative amplitude",420),use_container_width=True)
+        c[1].plotly_chart(fig1([(freqs,amps,"subcarriers",{"mode":"markers+lines"})],"Orthogonal subcarrier grid","frequency (MHz)","relative power",420),use_container_width=True)
+        st.metric("Channel bandwidth",f"{bw:.2f} MHz");st.metric("Subcarrier spacing",f"{df:.3f} MHz")
     with tabs[3]:
-        U0=FT(gaussian(x,.5)*np.cos(2*np.pi*f0*x),dx);shifted=FT(gaussian(x-r0,.5)*np.cos(2*np.pi*f0*(x-r0)),dx);pred=U0*np.exp(-1j*k*r0);verify("Translation theorem",shifted,pred,1e-3)
+        occupied=freqs.max()-freqs.min()+df
+        orthogonality=np.mean(np.cos(2*np.pi*np.arange(ncar)[:,None]*np.arange(ncar)[None,:]/ncar),axis=1)
+        st.metric("Occupied bandwidth",f"{occupied:.3f} MHz");st.metric("Orthogonality residual",f"{np.max(np.abs(orthogonality[1:])):.3e}")
+        st.plotly_chart(fig1([(freqs,amps,"active carriers",{"mode":"markers+lines"})],"Numerical channel occupancy","frequency (MHz)","power",420),use_container_width=True)
+    with tabs[4]:
+        st.markdown("### Why Fourier analysis matters")
+        st.write("A receiver can separate channels because different information streams occupy distinguishable spectral regions. Fourier analysis therefore turns an electromagnetic waveform into a map of where information and interference live in frequency.")
+    with tabs[5]:
+        st.markdown("### Research application: spectrum and channel planning")
+        ch=st.slider("Channel index",1,11,6)
+        centers=2.4+(np.arange(11)-(ch-1))*0.02
+        st.plotly_chart(fig1([(centers,np.ones(11),"channel centers",{"mode":"markers"})],"Example channel plan","frequency (GHz)","relative channel power",430),use_container_width=True)
+        st.info("In practical RF engineering, Fourier-domain measurements are used to identify occupied bandwidth, adjacent-channel interference and spectral leakage.")
 
-elif choice=="Transform Theorems":
-    tabs=shell("Fourier Transform Theorems as Physical Operators",
-    """Theorems are not memorization rules. They tell us how physical operations in real space become operations in reciprocal space.""",
-    """\[
-    \mathcal F\{x'\}=ikX,\quad
-    \mathcal F\{x*h\}=XH,\quad
-    \mathcal F\{xe^{iqr}\}=X(k-q).
-    \]
-    Differentiation, convolution and modulation therefore have simple spectral representations.""",
-    """These identities are the mathematical engine of filtering, wave propagation, PDE solving, spectroscopy and linear systems.""")
-    with tabs[2]:
-        theorem=st.selectbox("Experiment",["Differentiation","Convolution","Modulation","Scaling"]);x=np.linspace(-7,7,8192,endpoint=False);dx=x[1]-x[0];k=K(len(x),dx);u=np.exp(-x*x)*np.cos(2*np.pi*1.3*x);U=FT(u,dx)
-        if theorem=="Differentiation":a=FT(np.gradient(u,dx),dx);b=1j*k*U
-        elif theorem=="Convolution":h=gaussian(x,.5);v=signal.fftconvolve(u,h,"same")*dx;a=FT(v,dx);b=U*FT(h,dx)
-        elif theorem=="Modulation":q=st.slider("q",.2,5.,1.5,.1);a=FT(u*np.exp(1j*q*x),dx);b=np.interp(k-q,k,U.real,left=0)+1j*np.interp(k-q,k,U.imag,left=0)
-        else:a0=st.slider("scale",.3,2.5,1.5,.05);v=np.interp(a0*x,x,u,left=0,right=0);a=FT(v,dx);b=np.interp(k/a0,k,U.real,left=0,right=0)/a0+1j*np.interp(k/a0,k,U.imag,left=0,right=0)/a0
-        st.plotly_chart(fig1([(k,abs(a),"direct",{}),(k,abs(b),"predicted",{"line":dict(dash="dash")})],"Theorem experiment","k","magnitude"),use_container_width=True)
-    with tabs[3]:verify("Theorem numerical identity",a,b,2e-2)
-    with tabs[4]:st.write("A Fourier theorem is useful when it changes a difficult physical operation into a simple algebraic one.")
-
-elif choice=="Parseval & Plancherel":
-    tabs=shell("Parseval–Plancherel: Conservation of Quadratic Energy",
-    """The Fourier transform preserves the (L^2) norm, subject to normalization convention. This means energy can be analyzed equivalently in real or Fourier space.""",
-    """\[
-    \int|x(r)|^2dr=\frac{1}{2\pi}\int|X(k)|^2dk.
-    \]
-    The result follows from orthogonality of the complex exponential basis.""",
-    """Used in spectral energy budgets, quantum normalization, wave physics, optics and numerical stability analysis.""")
-    with tabs[2]:
-        x=np.linspace(-8,8,8192,endpoint=False);dx=x[1]-x[0];k=K(len(x),dx);u=np.exp(-x*x)*np.cos(2*np.pi*1.7*x);U=FT(u,dx);Er=np.sum(abs(u)**2)*dx;Ek=np.sum(abs(U)**2)*(k[1]-k[0])/(2*np.pi);c=st.columns(3);c[0].metric("Real energy",f"{Er:.8f}");c[1].metric("Fourier energy",f"{Ek:.8f}");c[2].metric("difference",f"{abs(Er-Ek):.2e}");st.plotly_chart(fig1([(x,abs(u)**2,"real energy density",{})],"Real-space energy","r","|x|²"),use_container_width=True);st.plotly_chart(fig1([(k,abs(U)**2/(2*np.pi),"spectral energy",{})],"Fourier-space energy","k","|X|²/2π"),use_container_width=True)
-    with tabs[3]:verify("Parseval identity",np.array([Er]),np.array([Ek]),1e-10)
-
-elif choice=="Convolution & Green Functions":
-    tabs=shell("Convolution, Correlation and Green Functions",
-    """Convolution describes the response of a linear translation-invariant system. A Green function is the response to a point source.""",
-    """\[
-    y(r)=h*x
-    \quad\Longrightarrow\quad
-    Y(k)=H(k)X(k).
-    \]
-    For a differential equation, the Green function becomes an algebraic transfer kernel in Fourier space.""",
-    """This is central to optics, electrostatics, diffusion, wave propagation, deconvolution and inverse problems.""")
-    with tabs[2]:
-        x=np.linspace(-7,7,8192,endpoint=False);dx=x[1]-x[0];k=K(len(x),dx);w=st.slider("Kernel width",.1,1.5,.5,.02);u=np.exp(-x*x)*np.cos(2*np.pi*1.2*x);h=gaussian(x,w);y=signal.fftconvolve(u,h,"same")*dx;U=FT(u,dx);H=FT(h,dx);Y=FT(y,dx);st.plotly_chart(fig1([(x,u,"input",{}),(x,h,"kernel",{}),(x,y,"response",{})],"Real-space convolution","r","field"),use_container_width=True);st.plotly_chart(fig1([(k,abs(Y),"|Y|",{}),(k,abs(U*H),"|UH|",{"line":dict(dash="dash")})],"Fourier-space multiplication","k","magnitude"),use_container_width=True)
-    with tabs[3]:verify("Convolution theorem",Y,U*H,2e-3)
-
-elif choice=="Uncertainty & Wave Packets":
-    tabs=shell("Fourier Localization and the Uncertainty Relation",
-    """Localization in one Fourier-conjugate coordinate requires broad support in the other. This is a geometric property of Fourier representations.""",
-    """For normalized probability densities,
-    \[
-    \Delta x\Delta k\geq\frac12.
-    \]
-    A Gaussian saturates the bound and therefore provides the cleanest laboratory.""",
-    """The same mathematics appears in quantum mechanics, laser pulses, wave packets, microscopy and coherent optics.""")
-    with tabs[2]:
-        s=st.slider("Gaussian width σ",.08,1.5,.35,.02);x=np.linspace(-8,8,8192);dx=x[1]-x[0];k=K(len(x),dx);psi=np.exp(-x*x/(4*s*s));P=abs(psi)**2;P/=P.sum()*dx;Psi=FT(psi,dx);Q=abs(Psi)**2;Q/=Q.sum()*(k[1]-k[0]);sx=np.sqrt(np.sum(x*x*P)*dx);sk=np.sqrt(np.sum(k*k*Q)*(k[1]-k[0]));c=st.columns(3);c[0].metric("Δx",f"{sx:.5f}");c[1].metric("Δk",f"{sk:.5f}");c[2].metric("ΔxΔk",f"{sx*sk:.5f}");st.plotly_chart(fig1([(x,P,"|ψ|²",{})],"Position-space packet","x","density"),use_container_width=True);st.plotly_chart(fig1([(k,Q,"|Ψ|²",{})],"Wave-number packet","k","density"),use_container_width=True)
-    with tabs[3]:verify("Uncertainty lower bound",np.array([sx*sk]),np.array([max(.5,sx*sk)]),1.0)
-
-elif choice=="2D Fourier Physics":
-    tabs=shell("2D Fourier Physics: Pixel Fields to Plane-Wave Space",
-    """A 2D field is projected onto plane waves:
+elif choice=="Images":
+    tabs=shell("Fourier Transform of Images",
+    """### Images contain spatial frequencies
+    A 2D image \(I(x,y)\) contains slowly varying structures, fine texture and edges. Its Fourier transform is
     \[
     F(k_x,k_y)=\iint I(x,y)e^{-i(k_xx+k_yy)}dxdy.
     \]
-    Every point in the reciprocal plane corresponds to a spatial frequency and direction.""",
-    """The 2D exponential separates:
+    Low spatial frequencies describe broad structure; high spatial frequencies describe fine detail and sharp transitions.""",
+    """### Filtering in the Fourier plane
+    A frequency-domain filter satisfies
     \[
-    e^{-i(k_xx+k_yy)}=e^{-ik_xx}e^{-ik_yy}.
+    G(k_x,k_y)=H(k_x,k_y)F(k_x,k_y),
     \]
-    Thus the projection is simultaneously a horizontal and vertical spatial-frequency measurement.""",
-    """Applications include diffraction, crystallography, microscopy, image formation, antenna apertures and spatial filtering.""")
+    followed by
+    \[
+    g(x,y)=\mathcal F^{-1}\{G\}.
+    \]
+    Therefore sharpening, denoising and edge enhancement can be designed as spatial-frequency operations.""",
+    """2D Fourier methods are used in image sharpening, denoising, edge detection, microscopy, pattern recognition, diffraction imaging and image reconstruction.""")
     with tabs[2]:
-        up=st.file_uploader("Upload an image",type=["png","jpg","jpeg"],key="research2d");n=st.select_slider("Grid",[64,96,128,160,192],128)
-        if up:I=np.asarray(Image.open(up).convert("L").resize((n,n)),float)
+        pattern=st.selectbox("Image / object",["Cells-like microscopy texture","Resolution chart","Crystal-like lattice pattern"])
+        N=256;y,x=np.mgrid[-1:1:complex(N),-1:1:complex(N)]
+        if pattern=="Cells-like microscopy texture":
+            rng=np.random.default_rng(3);img=np.zeros((N,N))
+            for _ in range(18):
+                cx,cy=rng.uniform(-.8,.8,2);r=.035+rng.uniform(0,.06);img+=np.exp(-((x-cx)**2+(y-cy)**2)/(2*r*r))
+            img+=.08*rng.normal(size=(N,N))
+        elif pattern=="Resolution chart":
+            img=(np.sin(2*np.pi*(8*x+20*x*x))+np.sin(2*np.pi*12*y)>0).astype(float)
         else:
-            yy,xx=np.mgrid[:n,:n];I=90+70*np.sin(2*np.pi*xx/18)+45*np.sin(2*np.pi*yy/27)+100*((xx-n*.32)**2+(yy-n*.65)**2<(n*.12)**2)
-        X,Y=np.meshgrid(np.arange(n),np.arange(n));kx0=st.slider("kx",-(n//2),n//2-1,6);ky0=st.slider("ky",-(n//2),n//2-1,0);B=np.exp(-2j*np.pi*(kx0*X+ky0*Y)/n);C=np.sum(I*B)/(n*n)
-        c=st.columns(3);c[0].image(np.clip(I,0,255).astype(np.uint8),caption="I(x,y)");c[1].image(((np.real(B)+1)*127.5).astype(np.uint8),caption="Re plane wave");c[2].image(((np.imag(B)+1)*127.5).astype(np.uint8),caption="Im plane wave");st.metric("Selected coefficient",f"{abs(C):.7f} ∠ {np.angle(C):.3f} rad");st.plotly_chart(heat(I*np.real(B),"Pixel-by-pixel projection contribution"),use_container_width=True)
+            img=(np.cos(2*np.pi*10*x)+np.cos(2*np.pi*10*y)>1).astype(float)
+        F=np.fft.fftshift(np.fft.fft2(img));mag=np.log1p(np.abs(F));radius=np.sqrt(x*x+y*y)
+        cutoff=st.slider("Low-pass cutoff",.02,.8,.25,.01)
+        H=(radius<cutoff).astype(float);rec=np.real(np.fft.ifft2(np.fft.ifftshift(F*H)))
+        c=st.columns(3);c[0].plotly_chart(heat(img,"Original image",height=360),use_container_width=True);c[1].plotly_chart(heat(mag,"2D Fourier magnitude",height=360),use_container_width=True);c[2].plotly_chart(heat(rec,"Filtered reconstruction",height=360),use_container_width=True)
+        st.metric("Retained Fourier area",f"{100*np.mean(H):.2f}%")
     with tabs[3]:
-        F=np.fft.fftshift(np.fft.fft2(I));st.plotly_chart(heat(np.log1p(abs(F)),"Reciprocal-space magnitude"),use_container_width=True);rec=np.real(np.fft.ifft2(np.fft.ifftshift(F)));verify("2D inverse reconstruction",I,rec,1e-10)
-    with tabs[4]:st.write("The most important visual idea is that a Fourier coefficient is built from every pixel. The reciprocal-space image is therefore a map of plane-wave content, not simply an alternative picture.")
+        mse=np.mean((img-rec)**2);snr=10*np.log10(np.mean(img**2)/(mse+1e-15))
+        c=st.columns(3);c[0].metric("MSE",f"{mse:.5e}");c[1].metric("Reconstruction SNR",f"{snr:.2f} dB");c[2].metric("Fourier energy retained",f"{100*np.sum(np.abs(F*H)**2)/np.sum(np.abs(F)**2):.2f}%")
+        st.plotly_chart(heat(np.abs(F*H),"Retained spatial frequencies",height=430),use_container_width=True)
+    with tabs[4]:
+        st.write("Edges and fine structures occupy high spatial frequencies. Low-pass filtering suppresses fine detail and noise; high-pass or band-pass filtering can emphasize edges and texture.")
+    with tabs[5]:
+        st.markdown("### Research application: microscopy and pattern recognition")
+        hp=F*(1-H);edges=np.real(np.fft.ifft2(np.fft.ifftshift(hp)))
+        c=st.columns(2);c[0].plotly_chart(heat(edges,"High-frequency / edge component",height=430),use_container_width=True);c[1].plotly_chart(heat(np.abs(F),"Microscopy spatial-frequency map",height=430),use_container_width=True)
 
-elif choice=="Fourier Imaging":
-    tabs=shell("Fourier Imaging: PSF → OTF → MTF",
-    """An imaging system maps an object through a point-spread function:
+elif choice=="Medical Imaging — MRI":
+    tabs=shell("Fourier Transform in MRI",
+    """### MRI measures Fourier-space information
+    MRI does not directly measure an image at each pixel. Gradient fields encode spatial position into frequency, and the scanner samples **k-space**.
     \[
-    I=h*O.
+    S(k_x,k_y)=\iint \rho(x,y)e^{-i2\pi(k_xx+k_yy)}dxdy.
     \]
-    Fourier transformation converts this into
+    The image is recovered by an inverse Fourier transform.""",
+    """### k-space to image
+    The measured signal is a Fourier-space representation of spin density:
     \[
-    I(k)=H(k)O(k).
-    \]""",
-    """The optical transfer function is the Fourier transform of the point-spread function. The modulation transfer function is its magnitude:
-    \[
-    OTF=\mathcal F\{PSF\},\qquad MTF=|OTF|.
-    \]""",
-    """Used to quantify microscope, camera, telescope and lithography resolution.""")
+    \rho(x,y)=\mathcal F^{-1}\{S(k_x,k_y)\}.
+    \]
+    The centre of k-space strongly influences contrast and overall structure, while outer k-space contains high spatial-frequency detail and edge information.""",
+    """Fourier reconstruction is central to MRI image formation, accelerated acquisition, partial Fourier methods, compressed sensing and k-space trajectory analysis.""")
     with tabs[2]:
-        n=256;x=np.linspace(-5,5,n);X,Y=np.meshgrid(x,x);s=st.slider("PSF width",.1,2.,.55,.03);psf=np.exp(-(X*X+Y*Y)/(2*s*s));psf/=psf.sum();O=np.fft.fftshift(np.fft.fft2(psf));M=abs(O);M/=M.max();c=st.columns(3);c[0].image(psf,caption="PSF");c[1].image(np.log1p(abs(O)),caption="log OTF");c[2].image(M,caption="MTF");yy,xx=np.indices((n,n));R=np.sqrt((xx-n/2)**2+(yy-n/2)**2);bins=np.arange(n//2);prof=np.array([M[(R>=q)&(R<q+1)].mean() for q in bins]);st.plotly_chart(fig1([(bins,prof,"radial MTF",{})],"MTF bandwidth","spatial frequency","MTF"),use_container_width=True)
-    with tabs[3]:st.metric("OTF(0)",f"{abs(O[n//2,n//2]):.6f}");verify("PSF normalization",np.array([psf.sum()]),np.array([1.0]),1e-10)
-
-elif choice=="Fourier Optics":
-    tabs=shell("Fourier Optics: Aperture, Diffraction and Propagation",
-    """Fraunhofer diffraction is a physical Fourier transform of the aperture field. More generally, propagation is multiplication by a transfer function in spatial-frequency space.""",
-    """For a far field,
-    \[
-    U_{far}(k_x,k_y)\propto\mathcal F\{A(x,y)\}.
-    \]
-    For angular-spectrum propagation,
-    \[
-    \tilde U(z)=\tilde U(0)e^{ik_zz}.
-    \]""",
-    """Applications include diffraction gratings, Fourier-plane filtering, microscopy, beam propagation and optical system design.""")
-    with tabs[2]:
-        n=320;L=8.;x=np.linspace(-L/2,L/2,n);X,Y=np.meshgrid(x,x);kind=st.selectbox("Aperture",["Single slit","Double slit","Circular","Square"]);w=st.slider("Size",.15,3.,.8,.05)
-        if kind=="Single slit":A=(abs(X)<w/2)
-        elif kind=="Double slit":A=(abs(X-w)<.15*w)|(abs(X+w)<.15*w)
-        elif kind=="Circular":A=X*X+Y*Y<(w/2)**2
-        else:A=(abs(X)<w/2)&(abs(Y)<w/2)
-        F=np.fft.fftshift(np.fft.fft2(A.astype(float)));I=abs(F)**2;I/=I.max();c=st.columns(2);c[0].image(A,caption="Aperture");c[1].image(np.log1p(I),caption="Far-field Fourier intensity")
-        st.plotly_chart(heat(np.log1p(I),"Fraunhofer diffraction map"),use_container_width=True)
-    with tabs[3]:center=I[n//2,n//2];st.metric("Normalized central intensity",f"{center:.6f}");verify("Transform is finite and non-negative",np.array([I.min()]),np.array([0.0]),1.0)
-
-elif choice=="Reciprocal Space & Diffraction":
-    tabs=shell("Reciprocal Space, Structure and Diffraction",
-    """Periodic real-space order becomes discrete reciprocal-space order. A crystal is therefore naturally represented by reciprocal vectors \(\mathbf G\).""",
-    """\[
-    \mathbf a_i\cdot\mathbf b_j=2\pi\delta_{ij},
-    \qquad
-    \mathbf k_{out}-\mathbf k_{in}=\mathbf G.
-    \]
-    The first relation constructs reciprocal space; the second expresses diffraction.""",
-    """Applications include X-ray diffraction, electron diffraction, neutron scattering, crystallography and band-structure physics.""")
-    with tabs[2]:
-        a=st.slider("lattice constant a",.5,3.,1.,.05);b1=np.array([2*np.pi/a,0]);b2=np.array([0,2*np.pi/a]);pts=np.array([i*b1+j*b2 for i in range(-5,6) for j in range(-5,6)]);fig=go.Figure(go.Scatter(x=pts[:,0],y=pts[:,1],mode="markers",name="G"));fig.add_trace(go.Scatter(x=[0],y=[0],mode="markers",marker=dict(size=14),name="Γ"));fig.update_layout(template="plotly_white",height=560,title="Reciprocal lattice",xaxis_title="kx",yaxis_title="ky",yaxis=dict(scaleanchor="x"));st.plotly_chart(fig,use_container_width=True)
-        lam=st.slider("wavelength",.4,3.,1.,.02);q=np.linspace(0,2*np.pi,700);kk=2*np.pi/lam;G=6.;ew=go.Figure();ew.add_trace(go.Scatter(x=kk*np.cos(q),y=kk*np.sin(q),name="Ewald circle"));ew.add_trace(go.Scatter(x=[0,G],y=[0,0],mode="lines+markers",name="G"));ew.update_layout(template="plotly_white",height=480,title="Ewald geometry",yaxis=dict(scaleanchor="x"));st.plotly_chart(ew,use_container_width=True)
-    with tabs[3]:st.latex(r"\mathbf a_i\cdot\mathbf b_j=2\pi\delta_{ij}");st.write("The numerical lattice vectors obey the defining reciprocal-space dot products.")
-    with tabs[4]:st.write("Reciprocal space is not an abstract plotting trick: diffraction measurements directly probe Fourier components of matter.")
-
-elif choice=="Quantum & Spectral PDEs":
-    tabs=shell("Quantum Fourier Space and Spectral PDE Laboratory",
-    """Fourier transformation converts derivatives into algebraic multiplication. In quantum mechanics it converts position representation into momentum representation; in PDEs it diagonalizes translation-invariant differential operators.""",
-    """Quantum free propagation:
-    \[
-    \tilde\psi(k,t)=\tilde\psi(k,0)e^{-i\hbar k^2t/(2m)}.
-    \]
-    Heat equation:
-    \[
-    U_t=-Dk^2U.
-    \]
-    Helmholtz:
-    \[
-    (k_0^2-k^2)U=0.
-    \]""",
-    """Applications span quantum mechanics, diffusion, wave propagation, electrostatics, acoustics, fluid dynamics and computational physics.""")
-    with tabs[2]:
-        mode=st.selectbox("Physical problem",["Free quantum wave packet","Heat equation","Wave equation","Poisson equation"]);x=np.linspace(-10,10,8192,endpoint=False);dx=x[1]-x[0];k=K(len(x),dx);u0=gaussian(x,.5);U0=FT(u0,dx);T=st.slider("time / evolution parameter",0.,3.,.8,.02)
-        if mode=="Free quantum wave packet":U=U0*np.exp(-1j*k*k*T/2);formula=r"\tilde\psi_t=\tilde\psi_0e^{-ik^2t/2}"
-        elif mode=="Heat equation":D=st.slider("D",.05,2.,.5,.05);U=U0*np.exp(-D*k*k*T);formula=r"U_t=-Dk^2U"
-        elif mode=="Wave equation":c0=st.slider("c",.2,3.,1.,.1);U=U0*np.cos(c0*abs(k)*T);formula=r"U_t\text{ governed by }\omega=ck"
-        else:U=U0/(k*k+1e-6);U[abs(k)<1e-8]=0;formula=r"k^2U=S"
-        u=np.real(IFT(U,dx));st.plotly_chart(fig1([(x,u0,"initial/source",{}),(x,u,"evolved/solution",{})],"Physical-space evolution","x","field"),use_container_width=True);st.plotly_chart(fig1([(k,abs(U0),"initial spectrum",{}),(k,abs(U),"current spectrum",{})],"Spectral evolution","k","magnitude"),use_container_width=True);st.latex(formula)
+        N=256;y,x=np.mgrid[-1:1:complex(N),-1:1:complex(N)]
+        phantom=((x/.72)**2+(y/.72)**2<1).astype(float)
+        phantom+=.35*((x+.22)**2+(y-.15)**2<.18**2)
+        phantom+=.18*((x-.28)**2+(y+.22)**2<.11**2)
+        F=np.fft.fftshift(np.fft.fft2(phantom));kx=np.fft.fftshift(np.fft.fftfreq(N));ky=kx
+        mask_mode=st.selectbox("k-space acquisition",["Full","Central 40% only","Every 2nd phase-encode line","Radial-like spokes"])
+        if mask_mode=="Full":mask=np.ones_like(F,dtype=bool)
+        elif mask_mode=="Central 40% only":mask=(x*x+y*y)<.4**2
+        elif mask_mode=="Every 2nd phase-encode line":mask=np.zeros_like(F,dtype=bool);mask[::2,:]=True
+        else:
+            ang=np.linspace(0,np.pi,24,endpoint=False);mask=np.zeros_like(F,dtype=bool)
+            for a0 in ang:
+                d=np.abs(x*np.sin(a0)-y*np.cos(a0));mask|=d<.012
+        recon=np.abs(np.fft.ifft2(np.fft.ifftshift(F*mask)))
+        c=st.columns(3);c[0].plotly_chart(heat(phantom,"Ground-truth phantom",height=360),use_container_width=True);c[1].plotly_chart(heat(np.log1p(np.abs(F)),"MRI k-space",height=360),use_container_width=True);c[2].plotly_chart(heat(recon,"Reconstructed MRI",height=360),use_container_width=True)
+        st.metric("Acquisition fraction",f"{100*np.mean(mask):.2f}%")
     with tabs[3]:
-        rec=FT(u,dx);verify("Forward/inverse consistency",np.real(IFT(rec,dx)),u,1e-10)
-    with tabs[4]:st.write("The central numerical insight is diagonalization: each Fourier mode evolves independently when the governing physics is translation invariant.")
+        mse=np.mean((phantom-recon)**2);corr=np.corrcoef(phantom.ravel(),recon.ravel())[0,1]
+        st.metric("Reconstruction MSE",f"{mse:.5e}");st.metric("Image correlation",f"{corr:.5f}");st.metric("Sampling reduction",f"{100*(1-np.mean(mask)):.1f}%")
+        st.plotly_chart(heat(np.abs(F)*mask,"Acquired k-space",height=430),use_container_width=True)
+    with tabs[4]:
+        st.info("MRI makes Fourier analysis physically tangible: changing which part of k-space is measured changes contrast, resolution and artefacts in the reconstructed image.")
+    with tabs[5]:
+        st.markdown("### Research application: accelerated MRI")
+        frac=np.linspace(.1,1.,10);quality=[]
+        for q in frac:
+            mm=(x*x+y*y)<(0.2+0.8*q)**2
+            rr=np.abs(np.fft.ifft2(np.fft.ifftshift(F*mm)))
+            quality.append(np.corrcoef(phantom.ravel(),rr.ravel())[0,1])
+        st.plotly_chart(fig1([(frac,quality,"correlation",{"mode":"lines+markers"})],"Image quality vs k-space coverage","fraction of k-space","correlation",430),use_container_width=True)
+        st.write("This is the computational logic behind studying accelerated acquisition: fewer measurements can reduce scan burden, but the reconstruction quality depends strongly on which Fourier-space information is retained.")
 
-elif choice=="Discrete Fourier Transform":
-    tabs=shell("Discrete Fourier Transform (DFT)",
-    """The DFT represents a finite sampled sequence using a finite set of discrete complex exponentials:
+elif choice=="Reciprocal Lattice, Diffraction & Crystal Structure Analysis":
+    tabs=shell("Reciprocal Lattice, Diffraction & Crystal Structure Analysis",
+    """### Crystals are naturally described in reciprocal space
+    Real-space lattice vectors \(\mathbf a_1,\mathbf a_2,\mathbf a_3\) generate reciprocal vectors
     \[
-    X_m=\sum_{n=0}^{N-1}x_ne^{-i2\pi mn/N}.
+    \mathbf b_i\cdot\mathbf a_j=2\pi\delta_{ij}.
     \]
-    It is the finite-dimensional Fourier basis used for numerical spectral analysis.""",
-    """For samples \(x_n\), define the basis
+    Periodicity in real space produces discrete reciprocal-lattice points. Diffraction occurs when scattering vectors connect reciprocal-lattice points.""",
+    """### Structure factor and diffraction
+    For atoms at positions \(\mathbf r_j\),
     \[
-    \phi_m(n)=e^{-i2\pi mn/N}.
+    F(\mathbf G)=\sum_j f_j e^{i\mathbf G\cdot\mathbf r_j}.
     \]
-    The DFT coefficient is the inner product \(X_m=\langle x,\phi_m\rangle\). Orthogonality of the discrete basis separates the modes.""",
-    """DFT is fundamental in numerical physics, digital spectroscopy, image analysis, diffraction calculations and computational signal processing.""")
-    with tabs[2]:
-        N=st.select_slider("Number of samples",[16,32,64,128,256],64);f1=st.slider("Component f₁",1.,15.,4.,.1);f2=st.slider("Component f₂",1.,15.,11.,.1);n=np.arange(N);x=np.cos(2*np.pi*f1*n/N)+.6*np.cos(2*np.pi*f2*n/N+.5);X=np.sum(x[None,:]*np.exp(-2j*np.pi*np.outer(np.arange(N),n)/N),axis=1)
-        m=np.arange(N);c=st.columns(2);c[0].plotly_chart(fig1([(n,x,"x[n]",{})],"Finite sampled field","n","amplitude"),use_container_width=True);c[1].plotly_chart(fig1([(m,abs(X),"|X[m]|",{})],"Discrete Fourier coefficients","m","magnitude"),use_container_width=True)
-        m0=st.slider("Inspect basis index m",0,N-1,4);basis=np.exp(-2j*np.pi*m0*n/N);contrib=x*basis;cum=np.cumsum(contrib);st.plotly_chart(fig1([(n,np.real(cum),"Re partial sum",{}),(n,np.imag(cum),"Im partial sum",{})],"DFT coefficient accumulation","n","partial coefficient"),use_container_width=True);st.metric("Selected coefficient",f"{abs(X[m0]):.6f} ∠ {np.angle(X[m0]):.3f} rad")
-    with tabs[3]:
-        xr=np.real(np.sum(X[:,None]*np.exp(2j*np.pi*np.outer(np.arange(N),n)/N),axis=0)/N);verify("DFT inverse reconstruction",xr,x,1e-10)
-    with tabs[4]:st.write("Unlike the continuous transform, the DFT operates on a finite periodic sequence. Spectral bins are discrete and the sampled record implicitly represents one period of a periodic extension.")
-    with tabs[5]:st.markdown("### Research applications\n- Numerical spectral methods\n- Digital spectroscopy\n- Computational imaging\n- Diffraction calculations\n- Finite sampled experimental data")
-
-elif choice=="Short-Time Fourier Transform":
-    tabs=shell("Short-Time Fourier Transform (STFT)",
-    """The ordinary Fourier transform answers **which frequencies exist over the entire observation interval**. The STFT asks **which frequencies exist near each time** by multiplying the signal by a sliding window:
+    The measured intensity is approximately
     \[
-    X(\tau,\omega)=\int x(t)w(t-\tau)e^{-i\omega t}dt.
-    \]""",
-    """A translated window \(w(t-\tau)\) localizes the signal. Fourier transformation of each localized segment produces a time-frequency representation. Short windows improve temporal localization; long windows improve frequency resolution.""",
-    """STFT is used for transient spectroscopy, wave packets, vibration analysis, acoustics, rotating machinery, biomedical signals and time-varying physical systems.""")
+    I(\mathbf G)\propto |F(\mathbf G)|^2.
+    \]
+    Thus the Fourier transform connects atomic arrangement to diffraction intensity and crystal-structure information.""",
+    """Reciprocal-lattice analysis underpins X-ray, electron and neutron diffraction, Brillouin zones, band-structure calculations, crystal identification and structure refinement.""")
     with tabs[2]:
-        fs=st.slider("Sampling rate",100,2000,800,50);duration=st.slider("Duration",1.,8.,4.,.25);window=st.slider("Window length",64,512,192,16);hop=st.slider("Hop size",16,256,64,16);t=np.arange(0,duration,1/fs);f0=8+18*t/duration;x=np.sin(2*np.pi*f0*t)+.35*np.sin(2*np.pi*(42-20*t/duration)*t);w=signal.windows.hann(window);starts=range(0,max(1,len(x)-window+1),hop);rows=[];times=[]
-        for j in starts:
-            seg=x[j:j+window]
-            if len(seg)<window:break
-            rows.append(abs(np.fft.rfft(seg*w)));times.append((j+window/2)/fs)
-        S=np.array(rows).T;freq=np.fft.rfftfreq(window,1/fs)
-        c=st.columns(2);c[0].plotly_chart(fig1([(t,x,"x(t)",{})],"Time-varying signal","time (s)","amplitude"),use_container_width=True);c[1].plotly_chart(heat(S,"STFT spectrogram",times,freq,"Viridis",500),use_container_width=True)
-        st.metric("Time bins",S.shape[1]);st.metric("Frequency bins",S.shape[0])
+        a=st.slider("Lattice constant a",1.,5.,2.,.1)
+        basis=st.selectbox("Basis",["Simple cubic","BCC","FCC","Two-atom basis"])
+        hmax=st.slider("Reciprocal index range",2,6,3)
+        pts=[]
+        for h in range(-hmax,hmax+1):
+            for k0 in range(-hmax,hmax+1):
+                for l in range(-hmax,hmax+1):
+                    if h*h+k0*k0+l*l<=hmax*hmax:pts.append((2*np.pi*h/a,2*np.pi*k0/a,2*np.pi*l/a))
+        pts=np.array(pts);c=st.columns(2)
+        c[0].plotly_chart(go.Figure(go.Scatter3d(x=pts[:,0],y=pts[:,1],z=pts[:,2],mode="markers",marker=dict(size=4))).update_layout(template="plotly_white",height=480,title="Reciprocal lattice"),use_container_width=True)
+        hkl=np.arange(1,2*hmax+1);I=np.ones_like(hkl,dtype=float)
+        if basis=="BCC": I=(1+(-1)**hkl)**2
+        elif basis=="FCC": I=((1+(-1)**hkl)**2)*(1+(-1)**hkl)**2/4
+        elif basis=="Two-atom basis": I=(1+np.cos(np.pi*hkl))**2
+        d=a/np.sqrt(hkl*hkl);theta=np.arcsin(np.minimum(0.95,1/(2*d)));twotheta=2*np.degrees(theta)
+        c[1].plotly_chart(fig1([(twotheta,I,"Bragg peaks",{"mode":"markers+lines"})],"Simulated powder diffraction","2θ (degrees)","relative intensity",480),use_container_width=True)
+        st.metric("Number of reciprocal points",len(pts))
     with tabs[3]:
-        energy_time=np.sum(x*x);energy_tf=np.sum(S*S)/window;st.metric("Signal energy",f"{energy_time:.4f}");st.metric("Windowed spectral energy (relative)",f"{energy_tf:.4f}");st.write("The exact equality depends on the chosen window and normalization. The verification panel therefore checks scaling rather than claiming a universal identity.")
-    with tabs[4]:st.write("STFT introduces a time-frequency trade-off: a narrow window tracks rapid events but broadens spectral features; a wide window resolves frequencies better but blurs when they occur.")
-    with tabs[5]:st.markdown("### Research applications\n- Transient spectroscopy\n- Wave-packet dynamics\n- Acoustic and vibration physics\n- Biomedical time-frequency analysis\n- Experimental data with evolving frequencies")
+        st.markdown("### Structure-factor verification")
+        h,k0,l=st.number_input("h",0,6,1),st.number_input("k",0,6,1),st.number_input("l",0,6,1)
+        basis_pos={"Simple cubic":[(0,0,0)],"BCC":[(0,0,0),(.5,.5,.5)],"FCC":[(0,0,0),(0,.5,.5),(.5,0,.5),(.5,.5,0)],"Two-atom basis":[(0,0,0),(.5,.5,.5)]}[basis]
+        amp=sum(np.exp(2j*np.pi*(h*rx+k0*ry+l*rz)) for rx,ry,rz in basis_pos)
+        st.metric("Structure-factor amplitude |F(hkl)|",f"{abs(amp):.6f}");st.metric("Intensity |F|²",f"{abs(amp)**2:.6f}")
+        st.write("Extinction occurs when symmetry-related contributions cancel exactly in reciprocal space.")
+    with tabs[4]:
+        st.markdown("### Brillouin-zone interpretation")
+        q=np.linspace(-np.pi/a,np.pi/a,600)
+        E=q*q
+        st.plotly_chart(fig1([(q,E,"free-electron parabola",{})],"First Brillouin zone","k","E(k)",430),use_container_width=True)
+        st.info("The first Brillouin zone is the Wigner–Seitz cell of the reciprocal lattice. Crystal periodicity makes reciprocal space the natural language of diffraction and band physics.")
+    with tabs[5]:
+        st.markdown("### Research application: diffraction → structure")
+        st.plotly_chart(fig1([(twotheta,I,"calculated diffraction",{"mode":"markers+lines"})],"Structure fingerprint","2θ","relative intensity",430),use_container_width=True)
+        st.markdown("Changing lattice constant shifts the diffraction pattern; changing the basis changes systematic intensities and extinctions. This is the computational core of crystal-structure analysis.")
 
 st.markdown("""
 <div class="fixed-footer">
