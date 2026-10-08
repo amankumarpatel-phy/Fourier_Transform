@@ -325,10 +325,24 @@ def crystal_page():
     c[1].markdown("### Bragg condition")
     c[1].latex(r"2d_{hkl}\sin\theta=n\lambda")
     c[1].latex(r"d_{hkl}=\frac{a}{\sqrt{h^2+k^2+l^2}}\quad\text{(cubic crystal)}")
-    h=np.arange(1,2*hmax+1);d=a/np.sqrt(h*h);lam=1.;theta=np.arcsin(np.minimum(.99,lam/(2*d)));I=np.ones_like(h,dtype=float)
-    if basis=="BCC":I=(1+(-1)**h)**2
-    if basis=="FCC":I=np.where((h%2==0),4.,0.)
-    st.plotly_chart(fig1([(2*np.degrees(theta),I,"Bragg intensity",{"mode":"markers+lines"})],"Simulated powder diffraction","2θ (degrees)","relative intensity",430),use_container_width=True)
+    lam=st.slider("X-ray wavelength λ (Å)",0.5,3.0,1.54,.01,key="xray_lambda")
+    peaks=[]; intens=[]; labels=[]
+    for hh in range(1,hmax+1):
+        for kk in range(0,hmax+1):
+            for ll in range(0,hmax+1):
+                if hh==kk==ll==0: continue
+                d=1/np.sqrt((hh/a)**2+(kk/b)**2+(ll/cc)**2)
+                arg=lam/(2*d)
+                if arg<1:
+                    FF=sum(np.exp(2j*np.pi*(hh*x+kk*y+ll*z)) for x,y,z in basis)
+                    peaks.append(2*np.degrees(np.arcsin(arg)));intens.append(abs(FF)**2);labels.append(f"{hh}{kk}{ll}")
+    peaks=np.asarray(peaks);intens=np.asarray(intens)
+    if len(peaks):
+        order=np.argsort(peaks);peaks=peaks[order];intens=intens[order];labels=np.asarray(labels)[order]
+        if intens.max()>0: intens=intens/intens.max()
+        fig=go.Figure(go.Stem(x=peaks,y=intens,customdata=labels,hovertemplate="hkl=%{customdata}<br>2θ=%{x:.2f}°<br>I/Imax=%{y:.3f}<extra></extra>"))
+        fig.update_layout(template="plotly_white",height=430,title="Structure-factor-weighted powder diffraction",xaxis_title="2θ (degrees)",yaxis_title="normalized intensity")
+        st.plotly_chart(fig,use_container_width=True)
     h0=st.number_input("h",0,5,1);k0=st.number_input("k",0,5,1);l0=st.number_input("l",0,5,1)
     pos={"Simple Cubic":[(0,0,0)],"BCC":[(0,0,0),(.5,.5,.5)],"FCC":[(0,0,0),(0,.5,.5),(.5,0,.5),(.5,.5,0)]}[basis]
     F=sum(np.exp(2j*np.pi*(h0*x+k0*y+l0*z)) for x,y,z in pos)
