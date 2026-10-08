@@ -293,7 +293,12 @@ def mri_page():
     else:mask=(r<55);mask[::4,:]=1
     rec=np.abs(np.fft.ifft2(np.fft.ifftshift(F*mask)));frac=np.mean(mask);mse=np.mean((img-rec)**2);corr=np.corrcoef(img.ravel(),rec.ravel())[0,1]
     c=st.columns(3);c[0].plotly_chart(heat(img,"Input anatomy / phantom",height=380),use_container_width=True);c[1].plotly_chart(heat(np.log1p(np.abs(F)),"MRI k-space",height=380),use_container_width=True);c[2].plotly_chart(heat(rec,"Fourier reconstructed image",height=380),use_container_width=True)
-    c=st.columns(3);c[0].metric("Acquisition fraction",f"{100*frac:.2f}%");c[1].metric("MSE",f"{mse:.4e}");c[2].metric("Correlation",f"{corr:.5f}")
+    psnr=10*np.log10(1/max(mse,1e-15))
+    c=st.columns(4);c[0].metric("Acquisition fraction",f"{100*frac:.2f}%");c[1].metric("MSE",f"{mse:.4e}");c[2].metric("Correlation",f"{corr:.5f}");c[3].metric("PSNR",f"{psnr:.2f} dB")
+    center=np.abs(F[F.shape[0]//2,:]); phase=np.abs(F[:,F.shape[1]//2])
+    c=st.columns(2)
+    c[0].plotly_chart(fig1([(np.arange(len(center)),np.log1p(center),"kx center line",{})],"k-space horizontal profile","kx sample","log(1+|S|)",320),use_container_width=True)
+    c[1].plotly_chart(fig1([(np.arange(len(phase)),np.log1p(phase),"ky center line",{})],"k-space vertical profile","ky sample","log(1+|S|)",320),use_container_width=True)
     math_section("Complete MRI Mathematics",[
         ("Spatial encoding / k-space signal",r"S(k_x,k_y)=\iint \rho(x,y)e^{-i2\pi(k_xx+k_yy)}\,dx\,dy"),
         ("Image reconstruction",r"\rho(x,y)=\iint S(k_x,k_y)e^{i2\pi(k_xx+k_yy)}\,dk_x\,dk_y"),
