@@ -82,19 +82,30 @@ def heat(z,title,x=None,y=None,scale="Viridis",height=500):
     f=go.Figure(go.Heatmap(z=z,x=x,y=y,colorscale=scale));f.update_layout(template="plotly_white",title=title,height=height);return f
 def gaussian(x,s):return np.exp(-x*x/(2*s*s))
 def render_academic(content):
-    """Render prose and display mathematics as separate Streamlit elements."""
+    """Render academic prose with reliable native Streamlit math rendering."""
     import re
-    chunks = re.split(r'(\\$\\$[\\s\\S]*?\\$\\$|\\\\\\[[\\s\\S]*?\\\\\\])', content)
-    for chunk in chunks:
-        if not chunk or not chunk.strip():
+
+    # Accept both LaTeX display forms: \\[ ... \\] and $$ ... $$.
+    pattern = re.compile(r"(\\\\\\[[\\s\\S]*?\\\\\\]|\\$\\$[\\s\\S]*?\\$\\$)")
+    parts = pattern.split(content)
+
+    for part in parts:
+        if not part or not part.strip():
             continue
-        if (chunk.startswith("$$") and chunk.endswith("$$")):
-            st.latex(chunk[2:-2].strip())
-        elif (chunk.startswith(r"\\[") and chunk.endswith(r"\\]")):
-            st.latex(chunk[2:-2].strip())
-        else:
-            chunk = chunk.replace(r"\\(", "$").replace(r"\\)", "$")
-            st.markdown(chunk)
+
+        stripped = part.strip()
+
+        if stripped.startswith(r"\\[") and stripped.endswith(r"\\]"):
+            st.latex(stripped[2:-2].strip())
+            continue
+
+        if stripped.startswith("$$") and stripped.endswith("$$"):
+            st.latex(stripped[2:-2].strip())
+            continue
+
+        # Inline math is converted to Streamlit's Markdown math syntax.
+        prose = part.replace(r"\\(", "$").replace(r"\\)", "$")
+        st.markdown(prose)
 
 def shell(title,theory,derivation,application,warning=None):
     st.markdown(f'<div class="title">{title}</div>',unsafe_allow_html=True)
