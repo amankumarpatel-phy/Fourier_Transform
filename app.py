@@ -86,7 +86,7 @@ def render_academic(content):
     import re
 
     # Accept both LaTeX display forms: \\[ ... \\] and $$ ... $$.
-    pattern = re.compile(r"(\\\\\\[[\\s\\S]*?\\\\\\]|\\$\\$[\\s\\S]*?\\$\\$)")
+    pattern = re.compile(r"(\\\\\[[\\s\\S]*?\\\\\]|\\$\\$[\\s\\S]*?\\$\\$)")
     parts = pattern.split(content)
 
     for part in parts:
