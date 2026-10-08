@@ -182,11 +182,14 @@ if choice=="Our Voice":
         c[0].plotly_chart(fig1([(t[:min(len(t),1600)],x[:min(len(t),1600)],"voice",{})],"Acoustic waveform","time (s)","pressure",420),use_container_width=True)
         c[1].plotly_chart(fig1([(freq[pos],np.abs(X[pos]),"spectrum",{})],"Voice spectrum","frequency (Hz)","magnitude",420),use_container_width=True)
         audio_buf=io.BytesIO()
-with wave.open(audio_buf,"wb") as wav:
-    wav.setnchannels(1);wav.setsampwidth(2);wav.setframerate(fs)
-    wav.writeframes((x*32767).astype(np.int16).tobytes())
-st.audio(audio_buf.getvalue(),format="audio/wav")
-        st.metric("Fundamental",f"{f0} Hz");st.metric("Highest modeled formant",f"{max(formants)} Hz")
+        with wave.open(audio_buf,"wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(fs)
+            wav.writeframes((x*32767).astype(np.int16).tobytes())
+        st.audio(audio_buf.getvalue(),format="audio/wav")
+        st.metric("Fundamental",f"{f0} Hz")
+        st.metric("Highest modeled formant",f"{max(formants)} Hz")
     with tabs[3]:
         st.markdown("### Spectral verification")
         X=FT(x,1/fs);xr=np.real(IFT(X,1/fs))
