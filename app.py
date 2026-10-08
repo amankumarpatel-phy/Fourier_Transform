@@ -197,18 +197,12 @@ def voice_page():
         st.audio(upload.getvalue(), format="audio/wav")
 
     math_section([
-        ("Continuous Fourier transform", r"X(f)=int_{-infty}^{infty}x(t)e^{-i2pi ft},dt",
-         "Decomposes the signal into complex sinusoidal components."),
-        ("Inverse transform", r"x(t)=int_{-infty}^{infty}X(f)e^{i2pi ft},df",
-         "Reconstructs the original waveform from its spectrum."),
-        ("Windowed measurement", r"x_w(t)=x(t)w(t)",
-         "A finite recording is analyzed through a window."),
-        ("Short-time Fourier transform", r"X(	au,f)=int x(t)w(t-	au)e^{-i2pi ft},dt",
-         "Provides the time-frequency representation used for changing speech."),
-        ("Vocal-tract model", r"S(f)=E(f)H_{mathrm{vocal tract}}(f)",
-         "Speech spectrum can be viewed as excitation shaped by the vocal tract."),
-        ("Parseval relation", r"int |x(t)|^2dt=int |X(f)|^2df",
-         "Energy is preserved under the properly normalized Fourier transform.")
+        ("Continuous Fourier transform", r"X(f)=\int_{-\infty}^{\infty}x(t)e^{-i2\pi ft}\,dt", "Decomposes the signal into complex sinusoidal components."),
+        ("Inverse transform", r"x(t)=\int_{-\infty}^{\infty}X(f)e^{i2\pi ft}\,df", "Reconstructs the original waveform from its spectrum."),
+        ("Windowed measurement", r"x_w(t)=x(t)w(t)", "A finite recording is analyzed through a window."),
+        ("Short-time Fourier transform", r"X(\tau,f)=\int x(t)w(t-\tau)e^{-i2\pi ft}\,dt", "Provides the time-frequency representation used for changing speech."),
+        ("Vocal-tract model", r"S(f)=E(f)H_{\mathrm{vocal\ tract}}(f)", "Speech spectrum can be viewed as excitation shaped by the vocal tract."),
+        ("Parseval relation", r"\int |x(t)|^2dt=\int |X(f)|^2df", "Energy is preserved under the properly normalized Fourier transform.")
     ])
 
 # ----------------------------- NOISE -----------------------------
@@ -268,12 +262,12 @@ def noise_page():
     explain("The filter does not 'know' what noise is. It applies a mathematical rule H(f). The physical assumption is that useful and unwanted components occupy distinguishable spectral regions.")
 
     math_section([
-        ("Additive-noise model",r"y(t)=s(t)+n(t)","The measured signal is the sum of desired signal and noise."),
-        ("Frequency-domain mixture",r"Y(f)=S(f)+N(f)","Linearity makes separation possible in spectral space."),
-        ("Linear filtering",r"widehat S(f)=H(f)Y(f)","The filter weights or removes selected frequencies."),
-        ("Inverse reconstruction",r"widehat s(t)=mathcal F^{-1}{widehat S(f)}","Returns the cleaned signal to the time domain."),
-        ("Ideal low-pass filter",r"H(f)=egin{cases}1,&|f|le f_c\\0,&|f|>f_cend{cases}","An idealized frequency selector."),
-        ("Output residual",r"e(t)=y(t)-widehat s(t)","Quantifies the component removed by the filter.")
+        ("Additive-noise model", r"y(t)=s(t)+n(t)", "The measured signal is the sum of desired signal and noise."),
+        ("Frequency-domain mixture", r"Y(f)=S(f)+N(f)", "Linearity makes separation possible in spectral space."),
+        ("Linear filtering", r"\widehat S(f)=H(f)Y(f)", "The filter weights or removes selected frequencies."),
+        ("Inverse reconstruction", r"\widehat s(t)=\mathcal F^{-1}\{\widehat S(f)\}", "Returns the cleaned signal to the time domain."),
+        ("Ideal low-pass filter", r"H(f)=\begin{cases}1,&|f|\le f_c\\0,&|f|>f_c\end{cases}", "An idealized frequency selector."),
+        ("Output residual", r"e(t)=y(t)-\widehat s(t)", "Quantifies the component removed by the filter.")
     ])
 
 # ----------------------------- COMMUNICATION -----------------------------
@@ -448,18 +442,12 @@ def image_page():
                 ("Resolution",f"{nx} × {ny}")])
 
     math_section([
-        ("2D Fourier transform",r"F(k_x,k_y)=iint I(x,y)e^{-i2pi(k_xx+k_yy)},dx,dy",
-         "Every point in the image contributes to every spatial-frequency component."),
-        ("Inverse transform",r"I(x,y)=iint F(k_x,k_y)e^{i2pi(k_xx+k_yy)},dk_x,dk_y",
-         "The spatial image is reconstructed by superposing spatial-frequency components."),
-        ("Frequency-domain filter",r"G(k_x,k_y)=H(k_x,k_y)F(k_x,k_y)",
-         "The transfer function controls which spatial scales survive."),
-        ("High-pass edge image",r"I_{mathrm{edge}}=mathcal F^{-1}{[1-H_{mathrm{LP}}]F}",
-         "Rapid spatial changes are emphasized by removing low spatial frequencies."),
-        ("Convolution theorem",r"mathcal F{I*h}=F(k_x,k_y)H(k_x,k_y)",
-         "Spatial convolution is equivalent to multiplication in Fourier space."),
-        ("Parseval energy relation",r"iint |I|^2,dxdy propto iint |F|^2,dk_xdk_y",
-         "Energy can be evaluated consistently in either domain.")
+        ("2D Fourier transform", r"F(k_x,k_y)=\iint I(x,y)e^{-i2\pi(k_xx+k_yy)}\,dx\,dy", "Every point in the image contributes to every spatial-frequency component."),
+        ("Inverse transform", r"I(x,y)=\iint F(k_x,k_y)e^{i2\pi(k_xx+k_yy)}\,dk_x\,dk_y", "The spatial image is reconstructed by superposing spatial-frequency components."),
+        ("Frequency-domain filter", r"G(k_x,k_y)=H(k_x,k_y)F(k_x,k_y)", "The transfer function controls which spatial scales survive."),
+        ("High-pass edge image", r"I_{\mathrm{edge}}=\mathcal F^{-1}\{[1-H_{\mathrm{LP}}]F\}", "Rapid spatial changes are emphasized by removing low spatial frequencies."),
+        ("Convolution theorem", r"\mathcal F\{I*h\}=F(k_x,k_y)H(k_x,k_y)", "Spatial convolution is equivalent to multiplication in Fourier space."),
+        ("Parseval energy relation", r"\iint |I|^2\,dxdy \propto \iint |F|^2\,dk_xdk_y", "Energy can be evaluated consistently in either domain.")
     ])
 
 # ----------------------------- MRI -----------------------------
@@ -544,18 +532,12 @@ def mri_page():
                 ("Correlation",f"{corr:.5f}"),("Reconstruction RMS",f"{np.sqrt(np.mean(rec**2)):.5f}")])
 
     math_section([
-        ("MRI signal equation",r"S(k_x,k_y)=iint ho(x,y)e^{-i2pi(k_xx+k_yy)},dx,dy",
-         "The measured signal is a Fourier-space sample of the spin-density distribution."),
-        ("Inverse reconstruction",r"ho(x,y)=iint S(k_x,k_y)e^{i2pi(k_xx+k_yy)},dk_x,dk_y",
-         "The image is recovered by inverse Fourier transformation."),
-        ("Gradient encoding",r"k(t)=gammaint_0^t G(	au),d	au",
-         "Magnetic-field gradients determine the trajectory through k-space."),
-        ("Sampling model",r"S_{mathrm{measured}}(k_x,k_y)=M(k_x,k_y)S(k_x,k_y)",
-         "The acquisition mask determines which Fourier coefficients are actually measured."),
-        ("Reconstruction from partial k-space",r"hatho=mathcal F^{-1}{M S}",
-         "Undersampling produces a predictable loss or redistribution of spatial information."),
-        ("Approximate resolution",r"Delta xapproxrac{1}{2k_{max}}",
-         "Maximum sampled spatial frequency sets the approximate resolution scale.")
+        ("MRI signal equation", r"S(k_x,k_y)=\iint \rho(x,y)e^{-i2\pi(k_xx+k_yy)}\,dx\,dy", "The measured signal is a Fourier-space sample of the spin-density distribution."),
+        ("Inverse reconstruction", r"\rho(x,y)=\iint S(k_x,k_y)e^{i2\pi(k_xx+k_yy)}\,dk_x\,dk_y", "The image is recovered by inverse Fourier transformation."),
+        ("Gradient encoding", r"k(t)=\gamma\int_0^t G(\tau)\,d\tau", "Magnetic-field gradients determine the trajectory through k-space."),
+        ("Sampling model", r"S_{\mathrm{measured}}(k_x,k_y)=M(k_x,k_y)S(k_x,k_y)", "The acquisition mask determines which Fourier coefficients are actually measured."),
+        ("Reconstruction from partial k-space", r"\hat\rho=\mathcal F^{-1}\{M S\}", "Undersampling produces a predictable loss or redistribution of spatial information."),
+        ("Approximate resolution", r"\Delta x\approx\frac{1}{2k_{\max}}", "Maximum sampled spatial frequency sets the approximate resolution scale.")
     ])
 
 # ----------------------------- CRYSTAL / RECIPROCAL SPACE -----------------------------
@@ -622,11 +604,11 @@ def crystal_page():
     c1,c2=st.columns(2)
     with c1:
         st.markdown("**Direct primitive vectors**")
-        st.latex(r"mathbf a_1,mathbf a_2,mathbf a_3")
+        st.latex(r"\mathbf a_1,\mathbf a_2,\mathbf a_3")
         st.write(A)
     with c2:
         st.markdown("**Reciprocal primitive vectors**")
-        st.latex(r"mathbf b_icdotmathbf a_j=2pidelta_{ij}")
+        st.latex(r"\mathbf b_i\cdot\mathbf a_j=2\pi\delta_{ij}")
         st.write(B)
 
     pts,idx=reciprocal_points(B,hmax)
@@ -696,24 +678,17 @@ def crystal_page():
         st.plotly_chart(fig,use_container_width=True)
 
     section("5. Numerical physics")
-    st.latex(r"mathbf G=hmathbf b_1+kmathbf b_2+lmathbf b_3")
-    st.latex(r"|mathbf G|=rac{2pi}{d_{hkl}}")
-    st.latex(r"2d_{hkl}sin	heta=nlambda")
+    st.latex(r"\mathbf G=h\mathbf b_1+k\mathbf b_2+l\mathbf b_3")
+    st.latex(r"|\mathbf G|=\frac{2\pi}{d_{hkl}}")
+    st.latex(r"2d_{hkl}\sin\theta=n\lambda")
 
     math_section([
-        ("Reciprocal basis",r"mathbf b_1=2pirac{mathbf a_2	imesmathbf a_3}{mathbf a_1cdot(mathbf a_2	imesmathbf a_3)},quad
-mathbf b_icdotmathbf a_j=2pidelta_{ij}",
-         "The reciprocal basis is defined by the direct-lattice primitive vectors."),
-        ("Reciprocal-lattice vector",r"mathbf G=hmathbf b_1+kmathbf b_2+lmathbf b_3",
-         "Every reciprocal-lattice point is indexed by three integers."),
-        ("Structure factor",r"F(mathbf G)=sum_j f_j e^{imathbf Gcdotmathbf r_j}",
-         "The basis determines which reciprocal-lattice reflections are allowed or extinguished."),
-        ("Diffraction intensity",r"I(mathbf G)propto |F(mathbf G)|^2",
-         "Measured diffraction intensity is related to the squared magnitude of the structure factor."),
-        ("Bragg law",r"2d_{hkl}sin	heta=nlambda",
-         "Equivalent to the Laue/reciprocal-space diffraction condition."),
-        ("First Brillouin zone",r"mathrm{BZ}_1=mathrm{Wigner!-!Seitz cell of the reciprocal lattice}",
-         "The fundamental primitive cell in reciprocal space used for band-structure physics.")
+        ("Reciprocal basis", r"\mathbf b_1=2\pi\frac{\mathbf a_2\times\mathbf a_3}{\mathbf a_1\cdot(\mathbf a_2\times\mathbf a_3)},\quad \mathbf b_i\cdot\mathbf a_j=2\pi\delta_{ij}", "The reciprocal basis is defined by the direct-lattice primitive vectors."),
+        ("Reciprocal-lattice vector", r"\mathbf G=h\mathbf b_1+k\mathbf b_2+l\mathbf b_3", "Every reciprocal-lattice point is indexed by three integers."),
+        ("Structure factor", r"F(\mathbf G)=\sum_j f_j e^{i\mathbf G\cdot\mathbf r_j}", "The basis determines which reciprocal-lattice reflections are allowed or extinguished."),
+        ("Diffraction intensity", r"I(\mathbf G)\propto |F(\mathbf G)|^2", "Measured diffraction intensity is related to the squared magnitude of the structure factor."),
+        ("Bragg law", r"2d_{hkl}\sin\theta=n\lambda", "Equivalent to the Laue/reciprocal-space diffraction condition."),
+        ("First Brillouin zone", r"\mathrm{BZ}_1=\mathrm{Wigner\!-\!Seitz\ cell\ of\ the\ reciprocal\ lattice}", "The fundamental primitive cell in reciprocal space used for band-structure physics.")
     ])
 
 # ----------------------------- APP -----------------------------
@@ -728,7 +703,7 @@ MODULES=[
 choice=st.sidebar.radio("Fourier Applications",MODULES)
 st.sidebar.divider()
 st.sidebar.markdown("### Fourier viewpoint")
-st.sidebar.latex(r"X(k)=int x(r)e^{-ikr},dr")
+st.sidebar.latex(r"X(k)=\int x(r)e^{-ikr}\,dr")
 st.sidebar.caption("Six applications only. Each module follows input → Fourier space → visualization → numerical analysis → mathematics.")
 
 if choice==MODULES[0]:
