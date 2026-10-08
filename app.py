@@ -146,6 +146,13 @@ def math_section(title, equations):
         st.markdown(f"**{label}**")
         st.latex(eq)
 
+def wav_bytes(x,fs):
+    buf=io.BytesIO()
+    with wave.open(buf,"wb") as w:
+        w.setnchannels(1);w.setsampwidth(2);w.setframerate(fs)
+        w.writeframes((np.clip(x,-1,1)*32767).astype(np.int16).tobytes())
+    return buf.getvalue()
+
 def audio_wav(uploaded):
     if uploaded is None:
         return None, None
@@ -204,7 +211,7 @@ def noise_page():
     c=st.columns(2)
     c[0].plotly_chart(fig1([(t,x,"noisy",{}),(t,y,"filtered",{"line":dict(dash="dash")})],"Waveform before and after filtering","time (s)","amplitude",390),use_container_width=True)
     c[1].plotly_chart(fig1([(f,np.abs(X)/n,"input",{}),(f,np.abs(Y)/n,"filtered",{})],"Frequency-domain noise removal","Hz","magnitude",390),use_container_width=True)
-    st.audio((np.clip(y,-1,1)*32767).astype(np.int16).tobytes(),format="audio/wav")
+    st.audio(wav_bytes(y,fs),format="audio/wav")
     removed=np.mean((x-y)**2);total=np.mean(x**2)
     st.metric("Removed spectral-energy fraction",f"{100*removed/(total+1e-15):.2f}%")
     math_section("Complete Mathematics",[
