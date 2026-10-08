@@ -267,7 +267,10 @@ def image_page():
     else:mask=np.ones_like(r)
     G=F*mask;rec=np.real(np.fft.ifft2(np.fft.ifftshift(G)));rec=(rec-rec.min())/(rec.max()-rec.min()+1e-12)
     c=st.columns(3);c[0].plotly_chart(heat(img,"Original image",height=370),use_container_width=True);c[1].plotly_chart(heat(np.log1p(np.abs(F)),"2D Fourier magnitude",height=370),use_container_width=True);c[2].plotly_chart(heat(rec,operation+" result",height=370),use_container_width=True)
-    st.metric("Fourier energy retained",f"{100*np.sum(np.abs(G)**2)/(np.sum(np.abs(F)**2)+1e-15):.2f}%")
+    mse=np.mean((img-rec)**2); psnr=10*np.log10(1/max(mse,1e-15)); energy=100*np.sum(np.abs(G)**2)/(np.sum(np.abs(F)**2)+1e-15)
+    c=st.columns(4);c[0].metric("Spectral energy retained",f"{energy:.2f}%");c[1].metric("MSE",f"{mse:.5e}");c[2].metric("PSNR",f"{psnr:.2f} dB");c[3].metric("Cutoff radius",f"{cutoff:.2f} R")
+    ri=np.floor(r).astype(int);mr=int(min(R,min(img.shape)/2));rad=np.array([np.mean(np.abs(F)[ri==q]) if np.any(ri==q) else 0 for q in range(mr+1)])
+    st.plotly_chart(fig1([(np.arange(mr+1),rad,"radial spectrum",{})],"Radially averaged spatial-frequency spectrum","radial frequency index","mean |F|",340),use_container_width=True)
     math_section("Complete Mathematics",[
         ("2D Fourier transform",r"F(k_x,k_y)=\iint I(x,y)e^{-i(k_xx+k_yy)}\,dx\,dy"),
         ("Inverse transform",r"I(x,y)=\frac{1}{(2\pi)^2}\iint F(k_x,k_y)e^{i(k_xx+k_yy)}\,dk_x\,dk_y"),
