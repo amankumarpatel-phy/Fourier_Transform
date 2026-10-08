@@ -327,15 +327,19 @@ def crystal_page():
     c[1].latex(r"d_{hkl}=\frac{a}{\sqrt{h^2+k^2+l^2}}\quad\text{(cubic crystal)}")
     lam=st.slider("X-ray wavelength λ (Å)",0.5,3.0,1.54,.01,key="xray_lambda")
     peaks=[]; intens=[]; labels=[]
-    for hh in range(1,hmax+1):
-        for kk in range(0,hmax+1):
-            for ll in range(0,hmax+1):
-                if hh==kk==ll==0: continue
-                d=1/np.sqrt((hh/a)**2+(kk/b)**2+(ll/cc)**2)
+    for H in range(0,hmax+1):
+        for K in range(0,hmax+1):
+            for L in range(0,hmax+1):
+                if H==0 and K==0 and L==0: continue
+                inv_d2=(H/a)**2+(K/b)**2+(L/cc)**2
+                if inv_d2 <= 0: continue
+                d=1/np.sqrt(inv_d2)
                 arg=lam/(2*d)
-                if arg<1:
-                    FF=sum(np.exp(2j*np.pi*(hh*x+kk*y+ll*z)) for x,y,z in basis)
-                    peaks.append(2*np.degrees(np.arcsin(arg)));intens.append(abs(FF)**2);labels.append(f"{hh}{kk}{ll}")
+                if 0 < arg < 1:
+                    FF=sum(np.exp(2j*np.pi*(H*x+K*y+L*z)) for x,y,z in basis)
+                    peaks.append(2*np.degrees(np.arcsin(arg)))
+                    intens.append(abs(FF)**2)
+                    labels.append(f"{H}{K}{L}")
     peaks=np.asarray(peaks);intens=np.asarray(intens)
     if len(peaks):
         order=np.argsort(peaks);peaks=peaks[order];intens=intens[order];labels=np.asarray(labels)[order]
